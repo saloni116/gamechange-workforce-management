@@ -15,6 +15,20 @@ enum EmployeeStatus {
   SUSPENDED
 }
 
+enum SOStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum ActivityStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 model Role {
   id          String   @id @default(uuid())
   name        String   @unique
@@ -27,7 +41,7 @@ model Role {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
+  roleActivities RoleActivity[]
   users       User[]
 }
 
@@ -57,19 +71,161 @@ model User {
   updatedAt     DateTime        @updatedAt
 
   role          Role            @relation(fields: [roleId], references: [id])
+  activityLogs  ActivityLog[]
+  coworkerSlots ActivityCoworker[]
 }
 
 model Department {
-  id          String   @id @default(uuid())
+  id           String   @id @default(uuid())
 
-  name        String   @unique
+  name         String   @unique
   description String?
 
-  isActive    Boolean  @default(true)
+  isActive     Boolean  @default(true)
 
-  isDeleted   Boolean  @default(false)
-  deletedAt   DateTime?
+  isDeleted    Boolean  @default(false)
+  deletedAt    DateTime?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  activities   Activity[]
+  activityLogs ActivityLog[]
+}
+
+model Activity {
+  id                  String   @id @default(uuid())
+
+  activityCode        String   @unique
+  activityName        String
+
+  departmentId        String
+
+  standardManMinutes Int
+
+  isActive            Boolean  @default(true)
+
+  isDeleted           Boolean  @default(false)
+  deletedAt           DateTime?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  department          Department @relation(fields: [departmentId], references: [id])
+
+  roleActivities      RoleActivity[]
+  activityLogs        ActivityLog[]
+}
+
+model RoleActivity {
+  id          String   @id @default(uuid())
+
+  roleId      String
+  activityId  String
 
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  role        Role     @relation(fields: [roleId], references: [id])
+  activity    Activity @relation(fields: [activityId], references: [id])
+
+  @@unique([roleId, activityId])
 }
+
+model SO {
+  id            String   @id @default(uuid())
+
+  soNumber      String   @unique
+
+  customerName  String
+  description   String?
+
+  status        SOStatus @default(OPEN)
+
+  startDate     DateTime
+  targetDate    DateTime
+
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  activityLogs  ActivityLog[]
+}
+
+model ActivityLog {
+  id                  String         @id @default(uuid())
+
+  userId              String
+  soId                String
+  departmentId        String
+  activityId          String
+
+  activityDate        DateTime
+
+  status              ActivityStatus @default(PENDING)
+
+  remarks             String?
+
+  isOtherActivity     Boolean        @default(false)
+  otherActivityReason String?
+
+  attachmentCount     Int            @default(0)
+
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  user                User           @relation(fields: [userId], references: [id])
+  so                  SO             @relation(fields: [soId], references: [id])
+  department          Department     @relation(fields: [departmentId], references: [id])
+  activity            Activity       @relation(fields: [activityId], references: [id])
+
+  slots               ActivitySlot[]
+  attachments         ActivityAttachment[]
+
+  @@unique([userId, soId, departmentId, activityId, activityDate])
+}
+
+model ActivitySlot {
+  id               String   @id @default(uuid())
+
+  activityLogId    String
+
+  startTime        DateTime
+  endTime          DateTime
+
+  durationMinutes  Int
+
+  createdAt        DateTime @default(now())
+
+  activityLog      ActivityLog @relation(fields: [activityLogId], references: [id])
+
+  coworkers        ActivityCoworker[]
+}
+
+model ActivityCoworker {
+  id               String   @id @default(uuid())
+
+  activitySlotId   String
+  coworkerUserId   String
+
+  createdAt        DateTime @default(now())
+
+  activitySlot     ActivitySlot @relation(fields: [activitySlotId], references: [id])
+
+  coworker         User @relation(fields: [coworkerUserId], references: [id])
+}
+
+model ActivityAttachment {
+  id              String   @id @default(uuid())
+
+  activityLogId   String
+
+  fileName        String
+  fileUrl         String
+  fileType        String
+
+  createdAt       DateTime @default(now())
+
+  activityLog     ActivityLog @relation(fields: [activityLogId], references: [id])
+}
+
