@@ -73,6 +73,8 @@ model User {
   role          Role            @relation(fields: [roleId], references: [id])
   activityLogs  ActivityLog[]
   coworkerSlots ActivityCoworker[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
 }
 
 model Department {
@@ -229,3 +231,38 @@ model ActivityAttachment {
   activityLog     ActivityLog @relation(fields: [activityLogId], references: [id])
 }
 
+model Notification {
+  id          String   @id @default(uuid())
+
+  userId      String
+
+  title       String
+  message     String
+
+  type        String
+  referenceId String?
+
+  isRead      Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+
+  user        User @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+
+  userId      String
+
+  module      String
+  action      String
+
+  entityId    String?
+
+  oldValue    String?
+  newValue    String?
+
+  createdAt   DateTime @default(now())
+
+  user        User @relation(fields: [userId], references: [id])
+}
