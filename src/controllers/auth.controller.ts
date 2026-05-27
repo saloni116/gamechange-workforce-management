@@ -1,6 +1,15 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 
 import { AuthService } from '../services/auth.service';
+
+import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 
 import { LoginDto } from '../modules/auth/dto/login.dto';
 
@@ -13,5 +22,15 @@ export class AuthController {
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getProfile(@Req() req: any) {
+    return {
+      message: 'Protected profile data',
+
+      user: req.user,
+    };
   }
 }
