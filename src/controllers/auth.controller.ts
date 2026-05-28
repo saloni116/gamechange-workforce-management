@@ -8,9 +8,9 @@ import {
 } from '@nestjs/common';
 
 import { AuthService } from '../services/auth.service';
-
+import { Roles } from '../modules/auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
-
+import { RolesGuard } from '../modules/auth/guards/roles.guard';
 import { LoginDto } from '../modules/auth/dto/login.dto';
 
 @Controller('auth')
@@ -31,6 +31,15 @@ export class AuthController {
       message: 'Protected profile data',
 
       user: req.user,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Admin')
+  @Get('admin-only')
+  async adminOnly(): Promise<{ message: string; }> {
+    return {
+      message: 'Welcome Admin',
     };
   }
 }
