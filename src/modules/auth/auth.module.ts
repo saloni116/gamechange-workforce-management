@@ -6,6 +6,7 @@ import { AuthController } from '../../controllers/auth.controller';
 import { AuthService } from '../../services/auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
+
 @Module({
   imports: [
     ConfigModule,
