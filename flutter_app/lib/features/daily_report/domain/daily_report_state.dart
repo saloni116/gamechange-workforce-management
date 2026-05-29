@@ -18,9 +18,12 @@ class DailyReportState {
   final bool isVerifyingCoworker;
   final String? coworkerError;
   final bool isOtherActivity;
+  final bool showAllActivities;
   final String otherActivityReason;
   final String? duplicateError;
+  final String? submitErrorMessage;
   final String? submitSuccessMessage;
+  final String? editingReportId;
 
   const DailyReportState({
     this.selectedSO,
@@ -34,9 +37,12 @@ class DailyReportState {
     this.isVerifyingCoworker = false,
     this.coworkerError,
     this.isOtherActivity = false,
+    this.showAllActivities = false,
     this.otherActivityReason = '',
     this.duplicateError,
+    this.submitErrorMessage,
     this.submitSuccessMessage,
+    this.editingReportId,
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -124,11 +130,16 @@ class DailyReportState {
     String? coworkerError,
     bool clearCoworkerError = false,
     bool? isOtherActivity,
+    bool? showAllActivities,
     String? otherActivityReason,
     String? duplicateError,
     bool clearDuplicateError = false,
+    String? submitErrorMessage,
+    bool clearSubmitErrorMessage = false,
     String? submitSuccessMessage,
     bool clearSubmitSuccessMessage = false,
+    String? editingReportId,
+    bool clearEditingReportId = false,
   }) {
     return DailyReportState(
       selectedSO:
@@ -154,16 +165,24 @@ class DailyReportState {
       coworkerError:
           clearCoworkerError ? null : (coworkerError ?? this.coworkerError),
       isOtherActivity: isOtherActivity ?? this.isOtherActivity,
+      showAllActivities:
+          showAllActivities ?? this.showAllActivities,
       otherActivityReason:
           otherActivityReason ?? this.otherActivityReason,
       duplicateError:
           clearDuplicateError
               ? null
               : (duplicateError ?? this.duplicateError),
+      submitErrorMessage:
+          clearSubmitErrorMessage
+              ? null
+              : (submitErrorMessage ?? this.submitErrorMessage),
       submitSuccessMessage:
           clearSubmitSuccessMessage
               ? null
               : (submitSuccessMessage ?? this.submitSuccessMessage),
+      editingReportId:
+          clearEditingReportId ? null : (editingReportId ?? this.editingReportId),
     );
   }
 }

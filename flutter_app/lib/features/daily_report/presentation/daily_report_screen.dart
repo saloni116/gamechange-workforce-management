@@ -26,12 +26,19 @@ class DailyReportScreen extends ConsumerWidget {
     // ── Snackbar on successful submit ──────────────────────────────────
     _listenForSubmitSuccess(context, ref);
 
-    // ── Activities filtered by selected department ─────────────────────
-    final filteredActivities = state.selectedDepartment != null
-        ? mockActivities
-              .where((a) => a.departmentId == state.selectedDepartment!.id)
-              .toList()
-        : <Activity>[];
+    // ── Activities: filtered by department OR full list ─────────────────
+    final List<Activity> displayedActivities;
+    if (state.showAllActivities) {
+      // Show ALL activities from mock data
+      displayedActivities = mockActivities.toList();
+    } else if (state.selectedDepartment != null) {
+      // Normal mode: only department-filtered activities
+      displayedActivities = mockActivities
+          .where((a) => a.departmentId == state.selectedDepartment!.id)
+          .toList();
+    } else {
+      displayedActivities = <Activity>[];
+    }
 
     // ── End-time-before-start validation (UI hint only) ───────────────
     final bool endTimeBeforeStart = _isEndBeforeStart(state);
@@ -59,12 +66,30 @@ class DailyReportScreen extends ConsumerWidget {
 
             // ═══ 3. Activity ═════════════════════════════════════════
             _ActivityDropdown(
-              activities: filteredActivities,
+              activities: displayedActivities,
               selectedActivity: state.selectedActivity,
               enabled: state.selectedDepartment != null,
               onChanged: notifier.selectActivity,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+
+            // ═══ 3b. Show All Activities Toggle ══════════════════════
+            if (state.selectedDepartment != null)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Show Other Activities'),
+                subtitle: state.showAllActivities
+                    ? const Text(
+                        'Showing all activities across departments',
+                        style: TextStyle(fontSize: 12),
+                      )
+                    : null,
+                value: state.showAllActivities,
+                onChanged: (v) =>
+                    notifier.toggleShowAllActivities(v ?? false),
+              ),
 
             // ═══ 3a. Other Activity Warning ══════════════════════════
             if (state.isOtherActivity) ...[
@@ -92,7 +117,23 @@ class DailyReportScreen extends ConsumerWidget {
 
             // ═══ 6. Productivity Summary ═════════════════════════════
             const ProductivitySummaryCard(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // ═══ 6a. Duplicate Error Banner ══════════════════════════
+            if (state.duplicateError != null)
+              _ErrorBanner(
+                message: state.duplicateError!,
+                onDismiss: notifier.clearDuplicateError,
+              ),
+
+            // ═══ 6b. Submit Error Banner ═════════════════════════════
+            if (state.submitErrorMessage != null)
+              _ErrorBanner(
+                message: state.submitErrorMessage!,
+                onDismiss: notifier.clearSubmitError,
+              ),
+
+            const SizedBox(height: 8),
 
             // ═══ 7. Submit Button ════════════════════════════════════
             SizedBox(
@@ -235,7 +276,7 @@ class _ActivityDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Activity>(
-      key: ValueKey(selectedActivity),
+      key: ValueKey('${selectedActivity?.id}_${activities.length}'),
       initialValue: selectedActivity,
       decoration: InputDecoration(
         labelText: 'Activity',
@@ -363,3 +404,57 @@ class _TimeEntrySection extends StatelessWidget {
     );
   }
 }
+
+// ── Error Banner (duplicate / submit errors) ─────────────────────────────
+
+/// Red error banner displayed when a duplicate report is detected or a
+/// generic submission error occurs. Includes a dismiss icon button.
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({
+    required this.message,
+    required this.onDismiss,
+  });
+
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const errorRed = Color(0xFFC62828);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE), // light red
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: errorRed.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: errorRed, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: errorRed,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Icon(Icons.close, color: errorRed, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

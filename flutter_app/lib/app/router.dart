@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../features/daily_report/presentation/daily_report_screen.dart';
-import '../screens/history/history_screen.dart';
+import '../features/history/presentation/history_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../shared/widgets/app_scaffold.dart';
 
