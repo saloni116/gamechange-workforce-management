@@ -151,9 +151,9 @@ class _VerifiedCoworkerCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: successGreen, width: 1),
+        side: BorderSide(color: successGreen.withValues(alpha: 0.5), width: 1),
       ),
-      color: const Color(0xFFE8F5E9), // light green background
+      color: successGreen.withValues(alpha: 0.1), // dark-friendly green background
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
@@ -175,7 +175,7 @@ class _VerifiedCoworkerCard extends StatelessWidget {
                   Text(
                     '$employeeId  ·  $department',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade700,
+                      color: Colors.grey.shade400,
                     ),
                   ),
                 ],

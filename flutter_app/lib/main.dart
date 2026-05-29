@@ -13,16 +13,16 @@ void main() {
 }
 
 /// Root widget for the Workforce Productivity Management System.
-class WorkforceApp extends StatelessWidget {
+class WorkforceApp extends ConsumerWidget {
   const WorkforceApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: 'Workforce Productivity',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: appRouter,
+      theme: AppTheme.darkTheme,
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

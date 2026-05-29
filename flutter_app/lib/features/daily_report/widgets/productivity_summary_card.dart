@@ -30,9 +30,9 @@ class ProductivitySummaryCard extends ConsumerWidget {
   }
 
   static Color _scoreBgColor(double percent) {
-    if (percent >= 90) return const Color(0xFFE8F5E9);
-    if (percent >= 70) return const Color(0xFFFFF8E1);
-    return const Color(0xFFFFEBEE);
+    if (percent >= 90) return const Color(0xFF2E7D32).withValues(alpha: 0.15);
+    if (percent >= 70) return const Color(0xFFF57F17).withValues(alpha: 0.15);
+    return const Color(0xFFC62828).withValues(alpha: 0.15);
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ class ProductivitySummaryCard extends ConsumerWidget {
               child: LinearProgressIndicator(
                 value: progressValue,
                 minHeight: 8,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: Colors.grey.shade800,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
@@ -169,7 +169,7 @@ class _MetricTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          color: const Color(0xFF1A1A1C),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(

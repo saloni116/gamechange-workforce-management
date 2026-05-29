@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
+import '../../features/timer/domain/countdown_provider.dart';
 
 /// Persistent scaffold wrapper used by the ShellRoute.
 ///
-/// Provides a bottom [NavigationBar] with 3 tabs:
-/// - Daily Log (/report)
-/// - History   (/history)
-/// - Profile   (/profile)
-///
-/// The [child] widget is provided by GoRouter's ShellRoute.
-class AppScaffold extends StatelessWidget {
+/// Provides a bottom navigation with a custom dark theme design,
+/// and an optional global countdown banner at the top.
+class AppScaffold extends ConsumerWidget {
   const AppScaffold({
     super.key,
     required this.child,
@@ -27,10 +25,10 @@ class AppScaffold extends StatelessWidget {
   // ─── Tab Definitions ──────────────────────────────────────────────
   static const List<_TabItem> _tabs = [
     _TabItem(
-      path: AppRoutes.report,
-      icon: Icons.edit_note_outlined,
-      selectedIcon: Icons.edit_note,
-      label: 'Daily Log',
+      path: AppRoutes.dashboard, // Updated to dashboard
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_filled,
+      label: 'Home',
     ),
     _TabItem(
       path: AppRoutes.history,
@@ -49,35 +47,107 @@ class AppScaffold extends StatelessWidget {
   /// Determines the selected tab index from the current route path.
   int _selectedIndex() {
     for (int i = 0; i < _tabs.length; i++) {
-      if (currentPath == _tabs[i].path) return i;
+      if (currentPath == _tabs[i].path || 
+          (currentPath == AppRoutes.newActivity && i == 0)) {
+        return i;
+      }
     }
-    return 0; // Default to Daily Log
+    return 0; // Default to Home
+  }
+
+  /// Formats duration into HH:MM:SS
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$hours:$minutes:$seconds';
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = _selectedIndex();
+    final theme = Theme.of(context);
+    final countdownState = ref.watch(countdownProvider);
 
     return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          final targetPath = _tabs[index].path;
-          // Only navigate if we're not already on the target tab.
-          if (targetPath != currentPath) {
-            context.go(targetPath);
-          }
-        },
-        destinations: _tabs
-            .map(
-              (tab) => NavigationDestination(
-                icon: Icon(tab.icon),
-                selectedIcon: Icon(tab.selectedIcon),
-                label: tab.label,
+      body: Column(
+        children: [
+          // ── Global Countdown Banner ──────────────────────────────
+          if (countdownState.isActive)
+            Container(
+              color: const Color(0xFFC62828).withOpacity(0.9), // Deep Red
+              width: double.infinity,
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 8,
+                bottom: 12,
               ),
-            )
-            .toList(),
+              child: Column(
+                children: [
+                  const Text(
+                    'SHIFT ENDS IN',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDuration(countdownState.remainingDuration),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // ── Main Content ──────────────────────────────────────────
+          Expanded(child: child),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          height: 80,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF262628), // Dark Grey surface
+            borderRadius: BorderRadius.circular(40),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(_tabs.length, (index) {
+              final tab = _tabs[index];
+              final isSelected = index == selectedIndex;
+              return GestureDetector(
+                onTap: () {
+                  if (tab.path != currentPath) {
+                    context.go(tab.path);
+                  }
+                },
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected ? const Color(0xFFFF735D) : Colors.transparent,
+                  ),
+                  child: Icon(
+                    isSelected ? tab.selectedIcon : tab.icon,
+                    color: isSelected ? Colors.black : Colors.grey.shade500,
+                    size: 28,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
