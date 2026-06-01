@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/domain/auth_notifier.dart';
 
-/// Enhanced Screen for the worker's profile.
+/// Profile screen — displays live user details from [AuthState].
 ///
-/// Displays Employee ID, User Type, Authentication Status, and Hive Token Status
-/// in factory-oriented UI cards, reading data directly from the active [AuthState].
+/// Shows first name, last name, employee ID, and role as returned by the
+/// backend API (or mock fallback). Logout clears all auth data from Hive.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -16,22 +16,20 @@ class ProfileScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
     final authState = ref.watch(authProvider);
 
-    final token = authState.token ?? '';
     final isAuthenticated = authState.isAuthenticated;
 
-    // Detect user type based on token structure
-    final String userType;
-    if (token.contains('mock_admin_token')) {
-      userType = 'Administrator';
-    } else if (token.contains('mock_worker_token')) {
-      userType = 'Factory Worker';
-    } else {
-      userType = 'Unknown';
-    }
+    // Real user data from AuthState (populated by API or mock fallback)
+    final employeeId = authState.employeeId ?? '—';
+    final firstName = authState.firstName ?? '—';
+    final lastName = authState.lastName ?? '—';
+    final role = authState.role ?? '—';
+    final fullName = authState.fullName ?? '$firstName $lastName';
 
-    // Determine storage status
-    final tokenStatus = token.isNotEmpty ? 'Stored (Hive Box)' : 'Not Stored';
-    final authStatusText = isAuthenticated ? 'Authenticated (Active Session)' : 'Not Authenticated';
+    // Storage status
+    final tokenStatus =
+        authState.token?.isNotEmpty == true ? 'Stored (Hive Box)' : 'Not Stored';
+    final authStatusText =
+        isAuthenticated ? 'Authenticated (Active Session)' : 'Not Authenticated';
 
     return Scaffold(
       appBar: AppBar(
@@ -55,11 +53,12 @@ class ProfileScreen extends ConsumerWidget {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ── Profile Avatar Header ─────────────────────────────────────
+                // ── Profile Avatar Header ──────────────────────────────────
                 const SizedBox(height: 8),
                 CircleAvatar(
                   radius: 50,
@@ -72,7 +71,7 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  userType,
+                  fullName,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colorScheme.primary,
@@ -87,21 +86,36 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 32),
 
-                // ── Info Cards Container ──────────────────────────────────────
+                // ── Info Cards ─────────────────────────────────────────────
                 _buildInfoCard(
                   context,
                   icon: Icons.badge_outlined,
                   title: 'Employee ID',
-                  value: 'Will be available after backend integration',
-                  isWarning: true,
+                  value: employeeId,
+                ),
+                const SizedBox(height: 16),
+
+                _buildInfoCard(
+                  context,
+                  icon: Icons.person_outline,
+                  title: 'First Name',
+                  value: firstName,
+                ),
+                const SizedBox(height: 16),
+
+                _buildInfoCard(
+                  context,
+                  icon: Icons.person,
+                  title: 'Last Name',
+                  value: lastName,
                 ),
                 const SizedBox(height: 16),
 
                 _buildInfoCard(
                   context,
                   icon: Icons.person_pin_outlined,
-                  title: 'User Type / Role',
-                  value: userType,
+                  title: 'Role',
+                  value: role,
                 ),
                 const SizedBox(height: 16),
 
@@ -123,15 +137,17 @@ class ProfileScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 40),
 
-                // ── Sign Out Button ──────────────────────────────────────────
+                // ── Sign Out Button ──────────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: OutlinedButton.icon(
                     onPressed: () {
+                      // Clears token, employeeId, firstName, lastName, role from Hive
                       ref.read(authProvider.notifier).logout();
                     },
-                    icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                    icon: const Icon(Icons.logout_rounded,
+                        color: Colors.redAccent),
                     label: const Text(
                       'Sign Out',
                       style: TextStyle(
@@ -141,7 +157,8 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.redAccent, width: 1.2),
+                      side: const BorderSide(
+                          color: Colors.redAccent, width: 1.2),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -180,14 +197,16 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 18.0),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 20.0, vertical: 18.0),
         child: Row(
           children: [
             // Left Icon Box
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: (badgeColor ?? colorScheme.primary).withValues(alpha: 0.1),
+                color:
+                    (badgeColor ?? colorScheme.primary).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -217,7 +236,8 @@ class ProfileScreen extends ConsumerWidget {
                       color: isWarning
                           ? Colors.orange.shade800
                           : colorScheme.onSurface,
-                      fontStyle: isWarning ? FontStyle.italic : FontStyle.normal,
+                      fontStyle:
+                          isWarning ? FontStyle.italic : FontStyle.normal,
                       fontSize: 14,
                     ),
                   ),

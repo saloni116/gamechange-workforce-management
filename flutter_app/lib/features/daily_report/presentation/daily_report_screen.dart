@@ -26,14 +26,19 @@ class DailyReportScreen extends ConsumerWidget {
     // ── Snackbar on successful submit ──────────────────────────────────
     _listenForSubmitSuccess(context, ref);
 
+    // ── Live lists from notifier (API data with mock fallback) ──────────
+    final allActivities = notifier.activities;
+    final allDepartments = notifier.departments;
+    final allSalesOrders = notifier.salesOrders;
+
     // ── Activities: filtered by department OR full list ─────────────────
     final List<Activity> displayedActivities;
     if (state.showAllActivities) {
-      // Show ALL activities from mock data
-      displayedActivities = mockActivities.toList();
+      // Show ALL activities from live/mock data
+      displayedActivities = allActivities.toList();
     } else if (state.selectedDepartment != null) {
       // Normal mode: only department-filtered activities
-      displayedActivities = mockActivities
+      displayedActivities = allActivities
           .where((a) => a.departmentId == state.selectedDepartment!.id)
           .toList();
     } else {
@@ -44,7 +49,23 @@ class DailyReportScreen extends ConsumerWidget {
     final bool endTimeBeforeStart = _isEndBeforeStart(state);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Daily Activity Log')),
+      appBar: AppBar(
+        title: const Text('Daily Activity Log'),
+        actions: [
+          if (state.isLoadingDropdowns)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         child: Column(
@@ -53,6 +74,7 @@ class DailyReportScreen extends ConsumerWidget {
             // ═══ 1. Sales Order ═══════════════════════════════════════
             _SalesOrderDropdown(
               selectedSO: state.selectedSO,
+              salesOrders: allSalesOrders,
               onChanged: notifier.selectSalesOrder,
             ),
             const SizedBox(height: 16),
@@ -60,6 +82,7 @@ class DailyReportScreen extends ConsumerWidget {
             // ═══ 2. Department ════════════════════════════════════════
             _DepartmentDropdown(
               selectedDepartment: state.selectedDepartment,
+              departments: allDepartments,
               onChanged: notifier.selectDepartment,
             ),
             const SizedBox(height: 16),
@@ -139,7 +162,9 @@ class DailyReportScreen extends ConsumerWidget {
             SizedBox(
               height: 50,
               child: ElevatedButton.icon(
-                onPressed: state.canSubmit ? () => notifier.submit() : null,
+                onPressed: state.canSubmit
+                    ? () async => await notifier.submit()
+                    : null,
                 icon: const Icon(Icons.send_rounded, size: 20),
                 label: const Text('Submit Report'),
                 style: ElevatedButton.styleFrom(
@@ -205,23 +230,25 @@ class DailyReportScreen extends ConsumerWidget {
 class _SalesOrderDropdown extends StatelessWidget {
   const _SalesOrderDropdown({
     required this.selectedSO,
+    required this.salesOrders,
     required this.onChanged,
   });
 
   final SalesOrder? selectedSO;
+  final List<SalesOrder> salesOrders;
   final ValueChanged<SalesOrder?> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<SalesOrder>(
-      key: ValueKey(selectedSO),
+      key: ValueKey('${selectedSO?.id}_${salesOrders.length}'),
       initialValue: selectedSO,
       decoration: const InputDecoration(
         labelText: 'Sales Order',
         prefixIcon: Icon(Icons.receipt_long_outlined),
       ),
       hint: const Text('Select sales order'),
-      items: mockSalesOrders.map((so) {
+      items: salesOrders.map((so) {
         return DropdownMenuItem(value: so, child: Text(so.label));
       }).toList(),
       onChanged: onChanged,
@@ -234,23 +261,25 @@ class _SalesOrderDropdown extends StatelessWidget {
 class _DepartmentDropdown extends StatelessWidget {
   const _DepartmentDropdown({
     required this.selectedDepartment,
+    required this.departments,
     required this.onChanged,
   });
 
   final Department? selectedDepartment;
+  final List<Department> departments;
   final ValueChanged<Department?> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Department>(
-      key: ValueKey(selectedDepartment),
+      key: ValueKey('${selectedDepartment?.id}_${departments.length}'),
       initialValue: selectedDepartment,
       decoration: const InputDecoration(
         labelText: 'Department',
         prefixIcon: Icon(Icons.business_outlined),
       ),
       hint: const Text('Select department'),
-      items: mockDepartments.map((dept) {
+      items: departments.map((dept) {
         return DropdownMenuItem(value: dept, child: Text(dept.name));
       }).toList(),
       onChanged: onChanged,

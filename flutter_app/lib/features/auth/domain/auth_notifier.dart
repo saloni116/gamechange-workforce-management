@@ -18,22 +18,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _checkInitialAuth();
   }
 
-  /// Checks if a valid token is already saved in Hive on boot.
-  void _checkInitialAuth() {
-    try {
-      final authBox = Hive.box('authBox');
-      final token = authBox.get('token') as String?;
-      if (token != null) {
-        state = AuthState(
-          isAuthenticated: true,
-          token: token,
-        );
-        debugPrint('🔑 Found existing token in Hive. Authenticated user.');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Error checking initial Hive token: $e');
-    }
-  }
+  // ── Hive key constants ──────────────────────────────────────────────────
+  static const String _keyToken = 'token';
+  static const String _keyEmployeeId = 'employeeId';
+  static const String _keyFirstName = 'firstName';
+  static const String _keyLastName = 'lastName';
+  static const String _keyRole = 'role';
+
+  // ── Backend base URL ────────────────────────────────────────────────────
+  static const String _baseUrl =
+      'https://gamechange-workforce-api.onrender.com/api/v1';
 
   /// Dio instance for auth API calls.
   final Dio _dio = Dio(BaseOptions(
@@ -41,17 +35,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
     receiveTimeout: const Duration(seconds: 10),
   ));
 
+  // ── Task 3 — Auto-login restore ─────────────────────────────────────────
+
+  /// Reads ALL persisted auth fields from Hive on app boot and restores state.
+  void _checkInitialAuth() {
+    try {
+      final authBox = Hive.box('authBox');
+      final token = authBox.get(_keyToken) as String?;
+
+      if (token != null && token.isNotEmpty) {
+        final employeeId = authBox.get(_keyEmployeeId) as String?;
+        final firstName = authBox.get(_keyFirstName) as String?;
+        final lastName = authBox.get(_keyLastName) as String?;
+        final role = authBox.get(_keyRole) as String?;
+
+        state = AuthState(
+          isAuthenticated: true,
+          token: token,
+          employeeId: employeeId,
+          firstName: firstName,
+          lastName: lastName,
+          role: role,
+        );
+
+        debugPrint(
+          '🔑 Auto-login restored from Hive — '
+          'employeeId: $employeeId, role: $role',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error restoring auth from Hive: $e');
+    }
+  }
+
   // ────────────────────────────────────────────────────────────────────────
-  // Login
+  // Task 2 — Login (live API + mock fallback)
   // ────────────────────────────────────────────────────────────────────────
 
   /// Attempts login with [employeeId] and [password].
   ///
   /// 1. Sets loading state.
-  /// 2. Tries real API call to backend (placeholder URL).
-  /// 3. On network failure (backend not ready), falls back to mock response.
-  /// 4. Saves token to Hive `authBox`.
-  /// 5. Updates state to authenticated or error — never navigates.
+  /// 2. Calls real API at [_baseUrl]/auth/login.
+  /// 3. On success: parses accessToken, employeeId, firstName, lastName, role.
+  /// 4. Saves all five values to Hive authBox.
+  /// 5. On any network / server failure: falls back to existing mock behavior.
+  /// 6. Updates state — never navigates.
   Future<void> login(String employeeId, String password) async {
     // Clear previous error and set loading
     state = state.copyWith(
@@ -60,67 +88,150 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
 
     try {
-      // Attempt real API call (will fail until backend is ready)
+      // ── Live API call ─────────────────────────────────────────────────
       final response = await _dio.post(
-        'http://PLACEHOLDER_URL/auth/login',
+        '$_baseUrl/auth/login',
         data: {
           'employeeId': employeeId,
           'password': password,
         },
       );
 
-      final token = response.data['token'] as String;
-      await _saveTokenAndAuthenticate(token);
-    } catch (e) {
-      // ── Backend not ready — simulate mock response ───────────────────
-      debugPrint('⚠️ Auth API unreachable, using mock login: $e');
+      final data = response.data as Map<String, dynamic>;
 
-      await Future.delayed(const Duration(seconds: 1));
+      final token = data['accessToken'] as String? ?? '';
+      final returnedEmployeeId = data['employeeId'] as String? ?? employeeId;
+      final firstName = data['firstName'] as String? ?? '';
+      final lastName = data['lastName'] as String? ?? '';
+      final role = data['role'] as String? ?? '';
 
-      // Guard: notifier may have been disposed during the delay
-      if (!mounted) return;
+      if (token.isNotEmpty) {
+        debugPrint('🔍 [DEBUG] Login API token (first 50): ${token.length > 50 ? token.substring(0, 50) : token}');
+      }
 
-      // Simulate a failure for testing if employeeId or password is 'invalid'
-      if (employeeId.toLowerCase() == 'invalid' || password.toLowerCase() == 'invalid') {
+      if (token.isEmpty) {
+        throw Exception('Server returned an empty token.');
+      }
+
+      await _saveAndAuthenticate(
+        token: token,
+        employeeId: returnedEmployeeId,
+        firstName: firstName,
+        lastName: lastName,
+        role: role,
+      );
+
+      debugPrint(
+        '✅ Live API login success — '
+        'employeeId: $returnedEmployeeId, role: $role',
+      );
+    } on DioException catch (e) {
+      // ── API-level error (4xx / 5xx) — show error, NO mock fallback ──
+      if (e.response != null) {
+        final statusCode = e.response!.statusCode ?? 0;
+        final serverMessage = _extractServerError(e.response!.data);
+
+        debugPrint(
+          '❌ Login API returned $statusCode: $serverMessage',
+        );
+
+        if (!mounted) return;
         state = state.copyWith(
           isLoading: false,
           isAuthenticated: false,
-          errorMessage: 'Invalid Employee ID or password. Please try again.',
+          errorMessage: serverMessage,
         );
         return;
       }
 
-      // Generate mock token based on employee ID
-      final mockToken = employeeId.toLowerCase().contains('admin')
-          ? 'mock_admin_token_${DateTime.now().millisecondsSinceEpoch}'
-          : 'mock_worker_token_${DateTime.now().millisecondsSinceEpoch}';
-
-      await _saveTokenAndAuthenticate(mockToken);
+      // ── Network / timeout / unreachable — fallback to mock ──────────
+      debugPrint(
+        '⚠️ Auth API unreachable (${e.type.name}), using mock login fallback.',
+      );
+      await _mockLoginFallback(employeeId, password);
+    } catch (e) {
+      // ── Unexpected error — fallback to mock ──────────────────────────
+      debugPrint('⚠️ Unexpected auth error, using mock login fallback: $e');
+      await _mockLoginFallback(employeeId, password);
     }
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Logout
+  // Logout — Task 5 (clears ALL Hive keys)
   // ────────────────────────────────────────────────────────────────────────
 
-  /// Clears token from Hive and resets state.
+  /// Clears ALL auth data from Hive and resets state.
   Future<void> logout() async {
     final authBox = Hive.box('authBox');
-    await authBox.delete('token');
+    await authBox.delete(_keyToken);
+    await authBox.delete(_keyEmployeeId);
+    await authBox.delete(_keyFirstName);
+    await authBox.delete(_keyLastName);
+    await authBox.delete(_keyRole);
 
     state = const AuthState();
 
-    debugPrint('🔒 User logged out, token cleared.');
+    debugPrint('🔒 User logged out — all Hive auth keys cleared.');
   }
 
   // ────────────────────────────────────────────────────────────────────────
   // Helpers (private)
   // ────────────────────────────────────────────────────────────────────────
 
-  /// Persists [token] into Hive and updates state to authenticated.
-  Future<void> _saveTokenAndAuthenticate(String token) async {
+  /// Existing mock fallback — only triggered when the server is unreachable.
+  ///
+  /// Preserves Day 1–3 mock login behavior exactly.
+  Future<void> _mockLoginFallback(String employeeId, String password) async {
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+
+    // Simulate a failure for 'invalid' credentials in mock mode
+    if (employeeId.toLowerCase() == 'invalid' ||
+        password.toLowerCase() == 'invalid') {
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: false,
+        errorMessage: 'Invalid Employee ID or password. Please try again.',
+      );
+      return;
+    }
+
+    // Determine mock role by employee ID
+    final isAdminMock = employeeId.toLowerCase().contains('admin');
+    final mockRole = isAdminMock ? 'Admin' : 'Worker';
+    final mockToken = isAdminMock
+        ? 'mock_admin_token_${DateTime.now().millisecondsSinceEpoch}'
+        : 'mock_worker_token_${DateTime.now().millisecondsSinceEpoch}';
+
+    await _saveAndAuthenticate(
+      token: mockToken,
+      employeeId: employeeId,
+      firstName: isAdminMock ? 'Mock' : 'Mock',
+      lastName: isAdminMock ? 'Admin' : 'Worker',
+      role: mockRole,
+    );
+
+    debugPrint('🧪 Mock login success — employeeId: $employeeId, role: $mockRole');
+  }
+
+  /// Persists all auth fields into Hive and updates state to authenticated.
+  Future<void> _saveAndAuthenticate({
+    required String token,
+    required String employeeId,
+    required String firstName,
+    required String lastName,
+    required String role,
+  }) async {
     final authBox = Hive.box('authBox');
-    await authBox.put('token', token);
+    await authBox.put(_keyToken, token);
+    await authBox.put(_keyEmployeeId, employeeId);
+    await authBox.put(_keyFirstName, firstName);
+    await authBox.put(_keyLastName, lastName);
+    await authBox.put(_keyRole, role);
+
+    final savedToken = authBox.get(_keyToken) as String? ?? '';
+    debugPrint('🔍 [DEBUG] Hive token (first 50): ${savedToken.length > 50 ? savedToken.substring(0, 50) : savedToken}');
 
     if (!mounted) return;
 
@@ -128,10 +239,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
       isLoading: false,
       isAuthenticated: true,
       token: token,
+      employeeId: employeeId,
+      firstName: firstName,
+      lastName: lastName,
+      role: role,
       clearError: true,
     );
 
-    debugPrint('✅ Auth success — token saved to Hive: ${token.substring(0, token.length.clamp(0, 20))}...');
+    debugPrint(
+      '💾 Auth saved to Hive — '
+      'token: ${token.substring(0, token.length.clamp(0, 20))}...',
+    );
+  }
+
+  /// Extracts a human-readable message from a server error response body.
+  String _extractServerError(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return (data['message'] as String?) ??
+          (data['error'] as String?) ??
+          'Login failed. Please check your credentials.';
+    }
+    return 'Login failed. Please check your credentials.';
   }
 
   /// Clears any displayed error message.

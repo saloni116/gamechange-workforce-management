@@ -25,6 +25,12 @@ class DailyReportState {
   final String? submitSuccessMessage;
   final String? editingReportId;
 
+  /// Whether live dropdown data is currently being fetched from the API.
+  final bool isLoadingDropdowns;
+
+  /// Whether a report submission API call is currently in progress.
+  final bool isSubmitting;
+
   const DailyReportState({
     this.selectedSO,
     this.selectedDepartment,
@@ -43,6 +49,8 @@ class DailyReportState {
     this.submitErrorMessage,
     this.submitSuccessMessage,
     this.editingReportId,
+    this.isLoadingDropdowns = false,
+    this.isSubmitting = false,
   });
 
   // ────────────────────────────────────────────────────────────────────────
@@ -100,6 +108,9 @@ class DailyReportState {
     // If this is an "other" activity, a reason is mandatory
     if (isOtherActivity && otherActivityReason.trim().isEmpty) return false;
 
+    // Cannot submit while already submitting
+    if (isSubmitting) return false;
+
     return true;
   }
 
@@ -140,6 +151,8 @@ class DailyReportState {
     bool clearSubmitSuccessMessage = false,
     String? editingReportId,
     bool clearEditingReportId = false,
+    bool? isLoadingDropdowns,
+    bool? isSubmitting,
   }) {
     return DailyReportState(
       selectedSO:
@@ -183,6 +196,8 @@ class DailyReportState {
               : (submitSuccessMessage ?? this.submitSuccessMessage),
       editingReportId:
           clearEditingReportId ? null : (editingReportId ?? this.editingReportId),
+      isLoadingDropdowns: isLoadingDropdowns ?? this.isLoadingDropdowns,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
     );
   }
 }

@@ -21,14 +21,22 @@ abstract class AppRoutes {
 class AuthChangeNotifier extends ChangeNotifier {
   String? _token;
   bool _isAuthenticated = false;
+  String? _role;
 
   String? get token => _token;
   bool get isAuthenticated => _isAuthenticated;
+  String? get role => _role;
 
-  void update(String? token, bool isAuthenticated) {
-    if (_token != token || _isAuthenticated != isAuthenticated) {
+  /// Whether the current user holds the Admin role.
+  bool get isAdmin => _role == 'Admin';
+
+  void update(String? token, bool isAuthenticated, String? role) {
+    if (_token != token ||
+        _isAuthenticated != isAuthenticated ||
+        _role != role) {
       _token = token;
       _isAuthenticated = isAuthenticated;
+      _role = role;
       notifyListeners();
     }
   }
@@ -43,25 +51,25 @@ final GoRouter appRouter = GoRouter(
   refreshListenable: authChangeNotifier,
   redirect: (context, state) {
     final isAuthenticated = authChangeNotifier.isAuthenticated;
-    final token = authChangeNotifier.token ?? '';
+    final isAdmin = authChangeNotifier.isAdmin;
     final isLoggingIn = state.uri.path == AppRoutes.login;
 
-    // 1. If not authenticated -> Login Screen
+    // 1. Not authenticated → Login Screen
     if (!isAuthenticated) {
       return isLoggingIn ? null : AppRoutes.login;
     }
 
-    // 2. If authenticated AND token contains "mock_admin_token" -> Admin Dashboard
-    if (token.contains('mock_admin_token')) {
+    // 2. Authenticated + Admin role → Admin Dashboard
+    if (isAdmin) {
       if (state.uri.path == AppRoutes.admin) return null;
       return AppRoutes.admin;
     }
 
-    // 3. If authenticated AND token contains "mock_worker_token" -> Existing Worker App
-    if (token.contains('mock_worker_token')) {
-      if (state.uri.path == AppRoutes.admin || state.uri.path == AppRoutes.login) {
-        return AppRoutes.report;
-      }
+    // 3. Authenticated + non-Admin role → Worker ShellRoute
+    // Guard against accessing admin or login routes
+    if (state.uri.path == AppRoutes.admin ||
+        state.uri.path == AppRoutes.login) {
+      return AppRoutes.report;
     }
 
     return null;

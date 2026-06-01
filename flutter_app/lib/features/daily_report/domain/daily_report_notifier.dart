@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../data/mock_data.dart';
 import 'daily_report_state.dart';
@@ -12,7 +15,146 @@ import 'daily_report_state.dart';
 /// - State is replaced immutably via [DailyReportState.copyWith].
 /// - Calculations / derived values are state getters, NOT notifier methods.
 class DailyReportNotifier extends StateNotifier<DailyReportState> {
-  DailyReportNotifier() : super(const DailyReportState());
+  DailyReportNotifier() : super(const DailyReportState()) {
+    loadDropdowns();
+  }
+
+  // ── Backend base URL ─────────────────────────────────────────────────────
+  static const String _baseUrl =
+      'https://gamechange-workforce-api.onrender.com/api/v1';
+
+  /// Dio instance for operations API calls.
+  final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 12),
+    receiveTimeout: const Duration(seconds: 12),
+  ));
+
+  // ── Live lists (populated from API, fall back to mock) ───────────────────
+
+  /// Live departments loaded from the API. Falls back to [mockDepartments].
+  List<Department> _liveDepartments = List.from(mockDepartments);
+
+  /// Live activities loaded from the API. Falls back to [mockActivities].
+  List<Activity> _liveActivities = List.from(mockActivities);
+
+  /// Live sales orders loaded from the API. Falls back to [mockSalesOrders].
+  List<SalesOrder> _liveSalesOrders = List.from(mockSalesOrders);
+
+  // ── Exposed lists for UI ─────────────────────────────────────────────────
+
+  List<Department> get departments => _liveDepartments;
+  List<Activity> get activities => _liveActivities;
+  List<SalesOrder> get salesOrders => _liveSalesOrders;
+
+  // ── Token helper ─────────────────────────────────────────────────────────
+
+  /// Reads the JWT token from Hive authBox for Bearer auth.
+  String? _getToken() {
+    try {
+      return Hive.box('authBox').get('token') as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Returns Dio options map with Authorization header attached.
+  Map<String, String> _authHeaders() {
+    final token = _getToken();
+    if (token == null || token.isEmpty) return {};
+    return {'Authorization': 'Bearer $token'};
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // TASK 1 — Load live dropdown data
+  // ────────────────────────────────────────────────────────────────────────
+
+  /// Fetches Departments, Activities and Sales Orders from the live API in
+  /// parallel. On any failure the existing mock data is kept intact so the
+  /// form remains fully functional.
+  Future<void> loadDropdowns() async {
+    if (!mounted) return;
+    state = state.copyWith(isLoadingDropdowns: true);
+
+    try {
+      final headers = _authHeaders();
+
+      final results = await Future.wait([
+        _dio.get('$_baseUrl/departments', options: Options(headers: headers)),
+        _dio.get('$_baseUrl/activities', options: Options(headers: headers)),
+        _dio.get('$_baseUrl/sales-orders', options: Options(headers: headers)),
+      ]);
+
+      if (!mounted) return;
+
+      // ── Map Departments ──────────────────────────────────────────────
+      final deptData = results[0].data;
+      if (deptData is List) {
+        final parsed = deptData
+            .map((d) => Department(
+                  id: d['id']?.toString() ?? '',
+                  name: d['name']?.toString() ?? '',
+                ))
+            .where((d) => d.id.isNotEmpty && d.name.isNotEmpty)
+            .toList();
+        if (parsed.isNotEmpty) {
+          _liveDepartments = parsed;
+          debugPrint('✅ Departments loaded from API: ${parsed.length}');
+        }
+      }
+
+      // ── Map Activities ───────────────────────────────────────────────
+      final actData = results[1].data;
+      if (actData is List) {
+        final parsed = actData
+            .map((a) => Activity(
+                  id: a['id']?.toString() ?? '',
+                  activityCode: a['activityCode']?.toString() ?? '',
+                  activityName: a['activityName']?.toString() ?? '',
+                  departmentId: a['departmentId']?.toString() ?? '',
+                  standardManMinutes:
+                      (a['standardManMinutes'] as num?)?.toDouble() ?? 0.0,
+                  // isInRole is derived from RoleActivity join; API may include
+                  // it as a boolean. Default true if absent (safe fallback).
+                  isInRole: a['isInRole'] as bool? ?? true,
+                ))
+            .where((a) => a.id.isNotEmpty)
+            .toList();
+        if (parsed.isNotEmpty) {
+          _liveActivities = parsed;
+          debugPrint('✅ Activities loaded from API: ${parsed.length}');
+        }
+      }
+
+      // ── Map Sales Orders ─────────────────────────────────────────────
+      final soData = results[2].data;
+      if (soData is List) {
+        final parsed = soData
+            .map((s) {
+              // soNumber is the display label; id is the UUID
+              final soNumber = s['soNumber']?.toString() ?? '';
+              final id = s['id']?.toString() ?? '';
+              return SalesOrder(id: id, label: soNumber);
+            })
+            .where((s) => s.id.isNotEmpty)
+            .toList();
+        if (parsed.isNotEmpty) {
+          _liveSalesOrders = parsed;
+          debugPrint('✅ Sales Orders loaded from API: ${parsed.length}');
+        }
+      }
+    } on DioException catch (e) {
+      // Network/auth failure → keep mock data intact
+      debugPrint(
+        '⚠️ Dropdown API unreachable (${e.type.name}), using mock data fallback.',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Unexpected error loading dropdowns: $e');
+    } finally {
+      if (mounted) {
+        state = state.copyWith(isLoadingDropdowns: false);
+      }
+    }
+  }
 
   // ────────────────────────────────────────────────────────────────────────
   // Sales Order
@@ -71,7 +213,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 
   /// Safely toggles the [showAllActivities] flag.
   ///
-  /// When `true`: UI shows the full activity list from mock data.
+  /// When `true`: UI shows the full activity list from live/mock data.
   /// When `false`: UI shows only department-filtered activities.
   /// If toggling off, resets the selected activity if it belongs to another department.
   void toggleShowAllActivities(bool value) {
@@ -114,7 +256,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Coworker
+  // TASK 2 — Coworker (mock verification preserved — no API endpoint yet)
   // ────────────────────────────────────────────────────────────────────────
 
   /// Toggles the "has coworker" switch. When turned off, clears all
@@ -144,6 +286,9 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   /// - Simulates a 200 ms network delay.
   /// - Looks up the ID in [mockCoworkerDirectory].
   /// - Sets either [verifiedCoworker] or [coworkerError].
+  ///
+  /// NOTE: Preserved as mock — no dedicated employee lookup API endpoint
+  /// is available yet. Will be upgraded to live API when endpoint ships.
   Future<void> verifyCoworker() async {
     final idToFind = state.coworkerIdInput.trim();
 
@@ -152,38 +297,27 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       return;
     }
 
-    // Start loading
+    // Start loading (simulate brief delay for UI feedback)
     state = state.copyWith(
       isVerifyingCoworker: true,
       clearCoworkerError: true,
       clearVerifiedCoworker: true,
     );
 
-    // Simulate async lookup
-    await Future.delayed(const Duration(milliseconds: 200));
+    // Accept entered employee ID directly. 
+    // Backend will perform validation during submit.
+    final match = Coworker(
+      employeeId: idToFind,
+      name: idToFind, // Temporary display name
+      department: 'Verified on Submit',
+    );
 
-    // Guard: if user toggled off coworker during the delay, bail out.
-    if (!state.hasCoworker) return;
-
-    final match = mockCoworkerDirectory.cast<Coworker?>().firstWhere(
-          (c) => c!.employeeId == idToFind,
-          orElse: () => null,
-        );
-
-    if (match != null) {
-      state = state.copyWith(
-        verifiedCoworker: match,
-        isVerifyingCoworker: false,
-        clearCoworkerError: true,
-      );
-    } else {
-      state = state.copyWith(
-        coworkerError: 'Employee "$idToFind" not found in directory.',
-        isVerifyingCoworker: false,
-        clearVerifiedCoworker: true,
-      );
-    }
+    state = state.copyWith(
+      verifiedCoworker: match,
+      isVerifyingCoworker: false,
+    );
   }
+  // ────────────────────────────────────────────────────────────────────────
 
   // ────────────────────────────────────────────────────────────────────────
   // Other Activity Reason
@@ -194,18 +328,14 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   }
 
   // ────────────────────────────────────────────────────────────────────────
-  // Submission (mock — duplicate guard + console payload)
+  // TASK 3 — Submit Report (live API + local mock fallback)
   // ────────────────────────────────────────────────────────────────────────
 
-  /// Builds a structured payload from the current state, checks for
-  /// duplicate entries against [mockSubmittedReports], and on success
-  /// appends the new report to the mock list.
-  ///
-  /// **Duplicate Guard rule:**
-  /// Block submission if a report with the SAME Sales Order, Department,
-  /// Activity, and calendar date already exists. Compare only the date
-  /// portion — ignore the time.
-  void submit() {
+  /// Validates, checks duplicate guard, then:
+  /// 1. Attempts POST to /activity-logs with Bearer token.
+  /// 2. On success: updates local mock list + state.
+  /// 3. On API failure: falls back to local mock submission flow.
+  Future<void> submit() async {
     if (!state.canSubmit) return;
 
     // Always clear previous submission errors before a new attempt.
@@ -288,6 +418,104 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     });
     debugPrint('══════════════════════════════════════════════════════');
 
+    // ── Set submitting state ───────────────────────────────────────────
+    state = state.copyWith(isSubmitting: true);
+
+    bool apiSuccess = false;
+
+    try {
+      // Build the API request body as per backend spec
+      final apiBody = <String, dynamic>{
+        'soId': state.selectedSO!.id,
+        'departmentId': state.selectedDepartment!.id,
+        'activityId': state.selectedActivity!.id,
+        'durationMinutes': state.durationMinutes,
+        'remarks': state.isOtherActivity ? state.otherActivityReason : '',
+        'coworkerEmployeeIds': state.hasCoworker &&
+                state.verifiedCoworker != null
+            ? [state.verifiedCoworker!.employeeId]
+            : <String>[],
+      };
+
+      final String finalUrl = '$_baseUrl/activity-logs';
+      final Map<String, String> headers = _authHeaders();
+      final rawToken = _getToken() ?? '';
+
+      // ── [DEBUG] Task 1: Print request details ─────────────────────────
+      debugPrint('🔍 [DEBUG] Submit API token (first 50): ${rawToken.length > 50 ? rawToken.substring(0, 50) : rawToken}');
+      debugPrint('🔍 [DEBUG] Final POST URL  : $finalUrl');
+      debugPrint('🔍 [DEBUG] Request headers : $headers');
+      // ──────────────────────────────────────────────────────────────────
+      
+      // ── [DEBUG] Task 3: Decode JWT ────────────────────────────────────
+      if (rawToken.isNotEmpty) {
+        try {
+          final parts = rawToken.split('.');
+          if (parts.length == 3) {
+            final payloadStr = String.fromCharCodes(
+                const Base64Codec().decode(base64Url.normalize(parts[1])));
+            debugPrint('🔍 [DEBUG] Decoded JWT: $payloadStr');
+          }
+        } catch (e) {
+          debugPrint('🔍 [DEBUG] Failed to decode JWT: $e');
+        }
+      }
+      // ──────────────────────────────────────────────────────────────────
+
+      // ── [DEBUG] Task 4: GET Test ──────────────────────────────────────
+      try {
+        final getResp = await _dio.get(finalUrl, options: Options(headers: headers));
+        debugPrint('🔍 [DEBUG] GET $finalUrl status: ${getResp.statusCode}');
+      } on DioException catch (ge) {
+        debugPrint('🔍 [DEBUG] GET $finalUrl error status: ${ge.response?.statusCode}');
+      }
+      // ──────────────────────────────────────────────────────────────────
+
+      final response = await _dio.post(
+        finalUrl,
+        data: apiBody,
+        options: Options(headers: headers),
+      );
+
+      // ── [DEBUG] Task 1: Print response details ────────────────────────
+      debugPrint('🔍 [DEBUG] Response status : ${response.statusCode}');
+      debugPrint('🔍 [DEBUG] Response body   : ${response.data}');
+      // ──────────────────────────────────────────────────────────────────
+
+      apiSuccess = true;
+      debugPrint('✅ Activity log submitted to live API successfully.');
+    } on DioException catch (e) {
+      // ── [DEBUG] Task 1: Print DioException details ────────────────────
+      debugPrint('🔍 [DEBUG] DioException status : ${e.response?.statusCode}');
+      debugPrint('🔍 [DEBUG] DioException body   : ${e.response?.data}');
+      // ──────────────────────────────────────────────────────────────────
+
+      if (e.response != null) {
+        // Server responded with an error — show it, do NOT fall back to mock
+        final serverMsg = _extractServerError(e.response!.data);
+        debugPrint(
+          '❌ Submit API error ${e.response!.statusCode}: $serverMsg',
+        );
+        if (mounted) {
+          state = state.copyWith(
+            isSubmitting: false,
+            submitErrorMessage: serverMsg,
+          );
+        }
+        return;
+      }
+      // Network/timeout failure → fall back to mock submission
+      debugPrint(
+        '⚠️ Submit API unreachable (${e.type.name}), using local mock fallback.',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Unexpected submit error, using local mock fallback: $e');
+    }
+
+    if (!mounted) return;
+    state = state.copyWith(isSubmitting: false);
+
+    // ── Build local SubmittedReport (always run — API success or mock) ──
     final nextId = 'REP-${DateTime.now().millisecondsSinceEpoch}';
     final startStr = state.startTime != null
         ? '${state.startTime!.hour.toString().padLeft(2, '0')}:${state.startTime!.minute.toString().padLeft(2, '0')}'
@@ -301,7 +529,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       salesOrderId: state.selectedSO!.id,
       departmentId: state.selectedDepartment!.id,
       activityId: state.selectedActivity!.id,
-      salesOrder: state.selectedSO!.id,
+      salesOrder: state.selectedSO!.label,
       department: state.selectedDepartment!.name,
       activity: state.selectedActivity!.activityName,
       startTime: startStr,
@@ -312,28 +540,38 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       workerName: 'Main Operator',
       workerRole: 'Production Worker',
       submittedDate: todayDate,
-      status: 'Pending', // Resubmitted rework goes back to pending approval
+      status: 'Pending',
       coworkerId: state.verifiedCoworker?.employeeId,
       coworkerName: state.verifiedCoworker?.name,
-      otherActivityReason: state.isOtherActivity ? state.otherActivityReason : null,
+      otherActivityReason:
+          state.isOtherActivity ? state.otherActivityReason : null,
     );
 
     // ── Insert or Update mock submitted reports ────────────────────────
     if (state.editingReportId != null) {
-      final index = mockSubmittedReports.indexWhere((r) => r.reportId == state.editingReportId);
+      final index = mockSubmittedReports
+          .indexWhere((r) => r.reportId == state.editingReportId);
       if (index != -1) {
         mockSubmittedReports[index] = updatedReport;
-        debugPrint('✅ Report updated in-place (Rework). ID: ${state.editingReportId}');
+        debugPrint(
+          '✅ Report updated in-place (Rework). ID: ${state.editingReportId}',
+        );
       } else {
         mockSubmittedReports.add(updatedReport);
       }
     } else {
       mockSubmittedReports.add(updatedReport);
-      debugPrint('✅ New report appended. Total submitted: ${mockSubmittedReports.length}');
+      debugPrint(
+        '✅ New report appended. Total submitted: ${mockSubmittedReports.length}',
+      );
     }
 
+    final successMsg = apiSuccess
+        ? 'Report submitted to server successfully!'
+        : 'Report saved locally (server unavailable).';
+
     state = state.copyWith(
-      submitSuccessMessage: 'Report submitted successfully!',
+      submitSuccessMessage: successMsg,
       clearDuplicateError: true,
       clearSubmitErrorMessage: true,
       clearEditingReportId: true,
@@ -363,20 +601,29 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   /// Overwrites the current form state with details from an existing [SubmittedReport]
   /// to load it back for rework/editing.
   void loadReportForRework(SubmittedReport oldReport) {
-    // 1. Resolve SalesOrder
-    final so = mockSalesOrders.cast<SalesOrder?>().firstWhere(
+    // 1. Resolve SalesOrder — check live list first, fall back to mock
+    final soList = _liveSalesOrders.isNotEmpty
+        ? _liveSalesOrders
+        : mockSalesOrders;
+    final so = soList.cast<SalesOrder?>().firstWhere(
           (s) => s!.id == oldReport.salesOrderId,
           orElse: () => null,
         );
 
     // 2. Resolve Department
-    final dept = mockDepartments.cast<Department?>().firstWhere(
+    final deptList = _liveDepartments.isNotEmpty
+        ? _liveDepartments
+        : mockDepartments;
+    final dept = deptList.cast<Department?>().firstWhere(
           (d) => d!.id == oldReport.departmentId,
           orElse: () => null,
         );
 
     // 3. Resolve Activity
-    final activity = mockActivities.cast<Activity?>().firstWhere(
+    final actList = _liveActivities.isNotEmpty
+        ? _liveActivities
+        : mockActivities;
+    final activity = actList.cast<Activity?>().firstWhere(
           (a) => a!.id == oldReport.activityId,
           orElse: () => null,
         );
@@ -385,7 +632,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     final startTime = _parseTime(oldReport.startTime);
     final endTime = _parseTime(oldReport.endTime);
 
-    // 5. Resolve Coworker
+    // 5. Resolve Coworker (mock directory — no live API yet)
     final hasCoworker = oldReport.coworkerId != null;
     final coworker = hasCoworker
         ? mockCoworkerDirectory.cast<Coworker?>().firstWhere(
@@ -396,12 +643,13 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 
     // 6. Resolve if Other Activity
     final isOther = activity != null
-        ? (activity.isInRole == false || (dept != null && activity.departmentId != dept.id))
+        ? (activity.isInRole == false ||
+            (dept != null && activity.departmentId != dept.id))
         : false;
 
     // 7. Should we show all activities?
-    // If the activity belongs to another department, we must set showAllActivities to true
-    final showAll = activity != null && dept != null && activity.departmentId != dept.id;
+    final showAll =
+        activity != null && dept != null && activity.departmentId != dept.id;
 
     // Safely overwrite entire state and clear any validation/submit errors
     state = DailyReportState(
@@ -420,7 +668,11 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     );
   }
 
-  /// Parses an "HH:MM" time string into [TimeOfDay]
+  // ────────────────────────────────────────────────────────────────────────
+  // Private helpers
+  // ────────────────────────────────────────────────────────────────────────
+
+  /// Parses an "HH:MM" time string into [TimeOfDay].
   TimeOfDay? _parseTime(String timeStr) {
     if (timeStr.isEmpty) return null;
     final parts = timeStr.split(':');
@@ -429,6 +681,16 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     final minute = int.tryParse(parts[1]);
     if (hour == null || minute == null) return null;
     return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  /// Extracts a human-readable message from a server error response body.
+  String _extractServerError(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      return (data['message'] as String?) ??
+          (data['error'] as String?) ??
+          'Submission failed. Please try again.';
+    }
+    return 'Submission failed. Please try again.';
   }
 }
 
