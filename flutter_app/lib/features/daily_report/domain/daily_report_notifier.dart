@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/mock_data.dart';
 import 'daily_report_state.dart';
+import 'logged_activity.dart';
+import 'activity_history_provider.dart';
 
 /// Riverpod [StateNotifier] that owns all mutations and validations for the
 /// Daily Report form.
@@ -12,7 +14,8 @@ import 'daily_report_state.dart';
 /// - State is replaced immutably via [DailyReportState.copyWith].
 /// - Calculations / derived values are state getters, NOT notifier methods.
 class DailyReportNotifier extends StateNotifier<DailyReportState> {
-  DailyReportNotifier() : super(const DailyReportState());
+  final Ref _ref;
+  DailyReportNotifier(this._ref) : super(const DailyReportState());
 
   // ────────────────────────────────────────────────────────────────────────
   // Sales Order
@@ -155,6 +158,14 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   // Submission (mock — console only)
   // ────────────────────────────────────────────────────────────────────────
 
+  String _formatTimeOfDay(TimeOfDay? time) {
+    if (time == null) return '';
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '${hour.toString().padLeft(2, '0')}:$minute $period';
+  }
+
   /// Builds a structured payload from the current state and prints it to
   /// the debug console. Sets [submitSuccessMessage] so the UI layer can
   /// react (e.g. show a snackbar). Does NOT call any API.
@@ -194,6 +205,25 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     });
     debugPrint('══════════════════════════════════════════════════════');
 
+    final newActivity = LoggedActivity(
+      id: 'ACT-${DateTime.now().millisecondsSinceEpoch}',
+      title: state.selectedActivity?.activityName ?? 'Unknown Activity',
+      activityCode: state.selectedActivity?.activityCode ?? 'ACT-000',
+      departmentName: state.selectedDepartment?.name ?? 'Unknown',
+      salesOrderId: state.selectedSO?.id,
+      timeString: '${_formatTimeOfDay(state.startTime)} - ${_formatTimeOfDay(state.endTime)}',
+      status: ActivityStatus.completed,
+      date: DateTime.now(),
+      durationMinutes: state.durationMinutes,
+      productivityPercent: state.productivityPercent,
+      hasCoworker: state.hasCoworker,
+      coworkerName: state.verifiedCoworker?.name,
+      isOtherActivity: state.isOtherActivity,
+      otherActivityReason: state.isOtherActivity ? state.otherActivityReason : null,
+    );
+
+    _ref.read(activityHistoryProvider.notifier).addActivity(newActivity);
+
     state = state.copyWith(
       submitSuccessMessage: 'Report submitted successfully!',
     );
@@ -213,5 +243,5 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 /// Global Riverpod provider for the Daily Report feature.
 final dailyReportProvider =
     StateNotifierProvider<DailyReportNotifier, DailyReportState>(
-  (ref) => DailyReportNotifier(),
+  (ref) => DailyReportNotifier(ref),
 );

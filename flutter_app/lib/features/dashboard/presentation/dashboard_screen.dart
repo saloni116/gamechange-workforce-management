@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../../daily_report/domain/logged_activity.dart';
+import '../../daily_report/domain/activity_history_provider.dart';
 
 /// The new home screen dashboard for the user.
 /// Displays daily activity stats, charts, and a quick action button.
@@ -57,10 +59,17 @@ class DashboardScreen extends ConsumerWidget {
                     'Daily Activities Done',
                     style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
                   ),
-                  Text(
-                    'See all >',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade500,
+                  GestureDetector(
+                    onTap: () => context.push(AppRoutes.history),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                      child: Text(
+                        'See all >',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -357,20 +366,74 @@ class _LegendItem extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════
 //  Mocked Activity List
 // ══════════════════════════════════════════════════════════════════════════
-class _ActivityList extends StatelessWidget {
+class _ActivityList extends ConsumerWidget {
   const _ActivityList();
 
+  IconData _getIconForActivity(String title) {
+    final lowercaseTitle = title.toLowerCase();
+    if (lowercaseTitle.contains('assembly') || lowercaseTitle.contains('harness')) {
+      return Icons.precision_manufacturing;
+    } else if (lowercaseTitle.contains('inspect') || lowercaseTitle.contains('check') || lowercaseTitle.contains('quality')) {
+      return Icons.fact_check;
+    } else if (lowercaseTitle.contains('maintenance') || lowercaseTitle.contains('cleanup') || lowercaseTitle.contains('calibration')) {
+      return Icons.build;
+    } else if (lowercaseTitle.contains('prep') || lowercaseTitle.contains('sanding') || lowercaseTitle.contains('paint')) {
+      return Icons.brush;
+    }
+    return Icons.assignment_outlined;
+  }
+
+  Color _getStatusColor(ActivityStatus status) {
+    switch (status) {
+      case ActivityStatus.completed:
+        return const Color(0xFF5C7862); // Sage green
+      case ActivityStatus.ongoing:
+        return const Color(0xFFFF735D); // Coral
+      case ActivityStatus.pending:
+        return Colors.blueGrey;
+    }
+  }
+
+  String _getStatusText(ActivityStatus status) {
+    switch (status) {
+      case ActivityStatus.completed:
+        return 'Completed';
+      case ActivityStatus.ongoing:
+        return 'Ongoing';
+      case ActivityStatus.pending:
+        return 'Pending';
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
-    final activities = [
-      {'title': 'Line Assembly', 'time': '08:00 AM - 10:30 AM', 'status': 'Completed', 'icon': Icons.precision_manufacturing},
-      {'title': 'Quality Check', 'time': '10:45 AM - 12:00 PM', 'status': 'Completed', 'icon': Icons.fact_check},
-      {'title': 'Equipment Maintenance', 'time': '01:00 PM - 02:30 PM', 'status': 'In Progress', 'icon': Icons.build},
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activities = ref.watch(activityHistoryProvider);
+
+    if (activities.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF262628),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: Text(
+            'No activities logged yet.',
+            style: TextStyle(color: Colors.white54),
+          ),
+        ),
+      );
+    }
+
+    // Take only the first 5 activities to show on dashboard
+    final recentActivities = activities.take(5).toList();
 
     return Column(
-      children: activities.map((act) {
-        final isCompleted = act['status'] == 'Completed';
+      children: recentActivities.map((act) {
+        final statusColor = _getStatusColor(act.status);
+        final statusText = _getStatusText(act.status);
+        final icon = _getIconForActivity(act.title);
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -383,12 +446,12 @@ class _ActivityList extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isCompleted ? const Color(0xFF5C7862).withOpacity(0.2) : const Color(0xFFFF735D).withOpacity(0.2),
+                  color: statusColor.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  act['icon'] as IconData,
-                  color: isCompleted ? const Color(0xFF5C7862) : const Color(0xFFFF735D),
+                  icon,
+                  color: statusColor,
                   size: 20,
                 ),
               ),
@@ -398,21 +461,21 @@ class _ActivityList extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      act['title'] as String,
+                      act.title,
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      act['time'] as String,
+                      act.timeString,
                       style: const TextStyle(color: Colors.white54, fontSize: 13),
                     ),
                   ],
                 ),
               ),
               Text(
-                act['status'] as String,
+                statusText,
                 style: TextStyle(
-                  color: isCompleted ? const Color(0xFF5C7862) : const Color(0xFFFF735D),
+                  color: statusColor,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
