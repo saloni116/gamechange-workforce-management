@@ -43,6 +43,8 @@ model Role {
   updatedAt   DateTime @updatedAt
   roleActivities RoleActivity[]
   users       User[]
+
+  restrictedActivities Activity[]
 }
 
 model User {
@@ -80,8 +82,10 @@ model User {
 model Department {
   id           String   @id @default(uuid())
 
-  name         String   @unique
-  description String?
+  name         String
+  code         String   @unique
+
+  description  String?
 
   isActive     Boolean  @default(true)
 
@@ -96,27 +100,28 @@ model Department {
 }
 
 model Activity {
-  id                  String   @id @default(uuid())
+  id                 String   @id @default(uuid())
 
-  activityCode        String   @unique
-  activityName        String
-
-  departmentId        String
+  activityName       String
 
   standardManMinutes Int
 
-  isActive            Boolean  @default(true)
+  departmentId       String
+  department         Department @relation(fields: [departmentId], references: [id])
 
-  isDeleted           Boolean  @default(false)
-  deletedAt           DateTime?
+  restrictedRoleId   String?
+  restrictedRole     Role? @relation(fields: [restrictedRoleId], references: [id])
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  isActive           Boolean  @default(true)
 
-  department          Department @relation(fields: [departmentId], references: [id])
+  isDeleted          Boolean  @default(false)
+  deletedAt          DateTime?
 
-  roleActivities      RoleActivity[]
-  activityLogs        ActivityLog[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  roleActivities     RoleActivity[]
+  activityLogs       ActivityLog[]
 }
 
 model RoleActivity {
@@ -133,27 +138,33 @@ model RoleActivity {
   @@unique([roleId, activityId])
 }
 
-model SO {
-  id            String   @id @default(uuid())
+model SalesOrder {
+  id                String   @id @default(uuid())
 
-  soNumber      String   @unique
+  soNumber          String   @unique
 
-  customerName  String
-  description   String?
+  customerName      String
 
-  status        SOStatus @default(OPEN)
+  projectName       String
 
-  startDate     DateTime
-  targetDate    DateTime
+  soDescription     String?
 
-  isDeleted     Boolean  @default(false)
-  deletedAt     DateTime?
+  startDate         DateTime
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  activityLogs  ActivityLog[]
+  endDate           DateTime
+
+  status            String   @default("ACTIVE")
+
+  isActive          Boolean  @default(true)
+
+  isDeleted         Boolean  @default(false)
+  deletedAt         DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  activityLogs      ActivityLog[]
 }
-
 model ActivityLog {
   id                  String         @id @default(uuid())
 
@@ -177,7 +188,7 @@ model ActivityLog {
   updatedAt           DateTime       @updatedAt
 
   user                User           @relation(fields: [userId], references: [id])
-  so                  SO             @relation(fields: [soId], references: [id])
+  SalesOrder          SalesOrder     @relation(fields: [soId], references: [id])
   department          Department     @relation(fields: [departmentId], references: [id])
   activity            Activity       @relation(fields: [activityId], references: [id])
 
