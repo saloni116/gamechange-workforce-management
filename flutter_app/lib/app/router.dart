@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/auth/domain/auth_provider.dart';
+import '../features/admin/presentation/admin_dashboard_stub.dart';
+import '../features/auth/domain/auth_notifier.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
 import '../features/daily_report/presentation/daily_report_screen.dart';
-import '../screens/history/history_screen.dart';
+import '../features/history/presentation/history_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../shared/widgets/app_scaffold.dart';
 
@@ -17,6 +18,7 @@ abstract class AppRoutes {
   static const String newActivity = '/new-activity';
   static const String history = '/history';
   static const String profile = '/profile';
+  static const String admin = '/admin';
 }
 
 /// GoRouter configuration provider.
@@ -29,6 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isAuth = authState.isAuthenticated;
+      final isAdmin = authState.role == 'Admin';
       final isGoingToLogin = state.uri.path == AppRoutes.login;
 
       // If user is not authenticated and trying to access a protected route
@@ -36,9 +39,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.login;
       }
       
-      // If user is authenticated and trying to access the login page
-      if (isAuth && isGoingToLogin) {
-        return AppRoutes.dashboard;
+      // If user is authenticated
+      if (isAuth) {
+        if (isAdmin) {
+          // Admin should only see the Admin screen
+          if (state.uri.path != AppRoutes.admin) {
+            return AppRoutes.admin;
+          }
+        } else {
+          // Workers should not see Admin screen or Login screen
+          if (state.uri.path == AppRoutes.admin || isGoingToLogin) {
+            return AppRoutes.dashboard;
+          }
+        }
       }
       
       // No redirect needed
@@ -49,6 +62,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.login,
         pageBuilder: (context, state) => const NoTransitionPage(
           child: LoginScreen(),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.admin,
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: AdminDashboardStub(),
         ),
       ),
       ShellRoute(

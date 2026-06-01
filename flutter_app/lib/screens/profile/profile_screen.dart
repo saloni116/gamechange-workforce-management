@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../features/auth/domain/auth_provider.dart';
+
+import '../../features/auth/domain/auth_notifier.dart';
 
 /// Screen for viewing the worker's profile.
-/// Displays worker name, Employee ID, DOB, daily hours worked (numerically and graphically),
+/// Displays worker name, Employee ID, daily hours worked (numerically and graphically),
 /// activities performed, and settings.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -13,10 +14,14 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
-    final employeeId = authState.employeeId ?? 'EMP-2139';
 
-    // Mocked profile data
-    const String fullName = 'George Davidson';
+    final employeeId = authState.employeeId ?? '—';
+    final firstName = authState.firstName ?? '';
+    final lastName = authState.lastName ?? '';
+    final fullName = authState.fullName ?? '$firstName $lastName';
+    final role = authState.role ?? 'Worker';
+
+    // Mocked profile stats
     const String dob = 'January 15, 1995';
     const double hoursWorkedToday = 6.5;
     const int activitiesDoneToday = 3;
@@ -64,7 +69,7 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Production Operator',
+                      role,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary, // Sage Green
                         fontWeight: FontWeight.w500,
@@ -207,13 +212,13 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
 
-              // ─── Actions ───────────────────────────────────────────────────
+              // ─── Actions / Sign Out ────────────────────────────────────────
               ElevatedButton.icon(
                 onPressed: () {
                   ref.read(authProvider.notifier).logout();
                 },
                 icon: const Icon(Icons.logout_rounded),
-                label: const Text('Log Out'),
+                label: const Text('Sign Out'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF735D).withOpacity(0.15),
                   foregroundColor: const Color(0xFFFF735D),

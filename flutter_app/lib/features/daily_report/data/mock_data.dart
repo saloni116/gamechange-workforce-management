@@ -192,3 +192,119 @@ const List<Coworker> mockCoworkerDirectory = [
   Coworker(employeeId: 'EMP-3087', name: 'Vikram Patel', department: 'Quality Control'),
   Coworker(employeeId: 'EMP-4056', name: 'Priya Desai', department: 'Painting'),
 ];
+
+// ---------------------------------------------------------------------------
+// Submitted Reports (mock persistence layer for duplicate guard)
+// ---------------------------------------------------------------------------
+
+/// Represents a successfully submitted daily activity report.
+///
+/// Used by [DailyReportNotifier.submit] to detect duplicate entries
+/// for the same Sales Order + Department + Activity on the same calendar date.
+class SubmittedReport {
+  final String reportId;
+  final String salesOrderId;
+  final String departmentId;
+  final String activityId;
+  final String salesOrder;
+  final String department;
+  final String activity;
+  final String startTime;
+  final String endTime;
+  final int durationMinutes;
+  final double productivityPercent;
+  final String workerName;
+  final String workerRole;
+  final DateTime submittedDate; // calendar date only (time zeroed)
+  final String status; // 'Pending', 'Approved', 'Rework Assigned'
+  final String? coworkerId;
+  final String? coworkerName;
+  final String? otherActivityReason;
+
+  const SubmittedReport({
+    required this.reportId,
+    required this.salesOrderId,
+    required this.departmentId,
+    required this.activityId,
+    required this.salesOrder,
+    required this.department,
+    required this.activity,
+    required this.startTime,
+    required this.endTime,
+    required this.durationMinutes,
+    required this.productivityPercent,
+    required this.workerName,
+    required this.workerRole,
+    required this.submittedDate,
+    required this.status,
+    this.coworkerId,
+    this.coworkerName,
+    this.otherActivityReason,
+  });
+}
+
+/// Mutable list that acts as a session-level mock database of submitted
+/// reports. The notifier appends to this on every successful submit and
+/// scans it before each new submit to enforce the duplicate guard.
+final List<SubmittedReport> mockSubmittedReports = [
+  SubmittedReport(
+    reportId: 'REP-001',
+    salesOrderId: 'SO-2025-001',
+    departmentId: 'DEPT-01',
+    activityId: 'ACT-001',
+    salesOrder: 'SO-2025-001',
+    department: 'Assembly',
+    activity: 'Frame Assembly',
+    startTime: '08:00',
+    endTime: '09:30',
+    durationMinutes: 90,
+    productivityPercent: 100.0,
+    workerName: 'Amit Patel',
+    workerRole: 'Senior Assembler',
+    submittedDate: DateTime.now().subtract(const Duration(days: 2)),
+    status: 'Approved',
+    coworkerId: null,
+    coworkerName: null,
+    otherActivityReason: null,
+  ),
+  SubmittedReport(
+    reportId: 'REP-002',
+    salesOrderId: 'SO-2025-002',
+    departmentId: 'DEPT-02',
+    activityId: 'ACT-004',
+    salesOrder: 'SO-2025-002',
+    department: 'Welding',
+    activity: 'MIG Welding',
+    startTime: '10:00',
+    endTime: '11:30',
+    durationMinutes: 90,
+    productivityPercent: 111.1,
+    workerName: 'Rajesh Kumar',
+    workerRole: 'MIG Welder',
+    submittedDate: DateTime.now().subtract(const Duration(days: 1)),
+    status: 'Pending',
+    coworkerId: 'EMP-2011',
+    coworkerName: 'Anita Sharma',
+    otherActivityReason: null,
+  ),
+  SubmittedReport(
+    reportId: 'REP-003',
+    salesOrderId: 'SO-2025-003',
+    departmentId: 'DEPT-03',
+    activityId: 'ACT-007',
+    salesOrder: 'SO-2025-003',
+    department: 'Quality Control',
+    activity: 'Visual Inspection',
+    startTime: '13:00',
+    endTime: '14:00',
+    durationMinutes: 60,
+    productivityPercent: 83.3,
+    workerName: 'Suresh Sen',
+    workerRole: 'Quality Inspector',
+    submittedDate: DateTime.now().subtract(const Duration(hours: 4)),
+    status: 'Rework Assigned',
+    coworkerId: null,
+    coworkerName: null,
+    otherActivityReason: 'Outside assigned shift, requested by supervisor to cover visual inspection.',
+  ),
+];

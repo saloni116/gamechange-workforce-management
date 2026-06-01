@@ -22,12 +22,24 @@ class DailyReportScreen extends ConsumerWidget {
     // ── Snackbar on successful submit ──────────────────────────────────
     _listenForSubmitSuccess(context, ref);
 
-    // ── Activities filtered by selected department ─────────────────────
-    final filteredActivities = state.selectedDepartment != null
-        ? mockActivities
-              .where((a) => a.departmentId == state.selectedDepartment!.id)
-              .toList()
-        : <Activity>[];
+    // ── Live lists from notifier (API data with mock fallback) ──────────
+    final allActivities = notifier.activities;
+    final allDepartments = notifier.departments;
+    final allSalesOrders = notifier.salesOrders;
+
+    // ── Activities: filtered by department OR full list ─────────────────
+    final List<Activity> displayedActivities;
+    if (state.showAllActivities) {
+      // Show ALL activities from live/mock data
+      displayedActivities = allActivities.toList();
+    } else if (state.selectedDepartment != null) {
+      // Normal mode: only department-filtered activities
+      displayedActivities = allActivities
+          .where((a) => a.departmentId == state.selectedDepartment!.id)
+          .toList();
+    } else {
+      displayedActivities = <Activity>[];
+    }
 
     final bool endTimeBeforeStart = _isEndBeforeStart(state);
 
@@ -40,10 +52,24 @@ class DailyReportScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          if (state.isLoadingDropdowns)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100), // extra bottom padding
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100), // extra bottom padding for tab bar
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -56,7 +82,7 @@ class DailyReportScreen extends ConsumerWidget {
                     style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
                   ),
                   Text(
-                    'Required >',
+                    'Required *',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: Colors.grey.shade500,
                     ),
@@ -68,6 +94,7 @@ class DailyReportScreen extends ConsumerWidget {
               // ═══ 1. Sales Order ═══════════════════════════════════════
               _SalesOrderDropdown(
                 selectedSO: state.selectedSO,
+                salesOrders: allSalesOrders,
                 onChanged: notifier.selectSalesOrder,
               ),
               const SizedBox(height: 12),
@@ -75,18 +102,36 @@ class DailyReportScreen extends ConsumerWidget {
               // ═══ 2. Department ════════════════════════════════════════
               _DepartmentDropdown(
                 selectedDepartment: state.selectedDepartment,
+                departments: allDepartments,
                 onChanged: notifier.selectDepartment,
               ),
               const SizedBox(height: 12),
 
               // ═══ 3. Activity ═════════════════════════════════════════
               _ActivityDropdown(
-                activities: filteredActivities,
+                activities: displayedActivities,
                 selectedActivity: state.selectedActivity,
                 enabled: state.selectedDepartment != null,
                 onChanged: notifier.selectActivity,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+
+              // ═══ 3b. Show All Activities Toggle ══════════════════════
+              if (state.selectedDepartment != null)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Show Other Activities'),
+                  subtitle: state.showAllActivities
+                      ? const Text(
+                          'Showing all activities across departments',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        )
+                      : null,
+                  value: state.showAllActivities,
+                  onChanged: (v) => notifier.toggleShowAllActivities(v ?? false),
+                ),
 
               // ═══ 3a. Other Activity Warning ══════════════════════════
               if (state.isOtherActivity) ...[
@@ -139,30 +184,51 @@ class DailyReportScreen extends ConsumerWidget {
                     'Your progress',
                     style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
                   ),
-                  Text(
-                    'See summary >',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 16),
 
               // ═══ 6. Productivity Summary ═════════════════════════════
               const ProductivitySummaryCard(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // ═══ 6a. Duplicate Error Banner ══════════════════════════
+              if (state.duplicateError != null)
+                _ErrorBanner(
+                  message: state.duplicateError!,
+                  onDismiss: notifier.clearDuplicateError,
+                ),
+
+              // ═══ 6b. Submit Error Banner ═════════════════════════════
+              if (state.submitErrorMessage != null)
+                _ErrorBanner(
+                  message: state.submitErrorMessage!,
+                  onDismiss: notifier.clearSubmitError,
+                ),
+
+              const SizedBox(height: 16),
 
               // ═══ 7. Submit Button ════════════════════════════════════
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: state.canSubmit ? () => notifier.submit() : null,
-                  icon: const Icon(Icons.send_rounded, size: 20),
-                  label: const Text('Submit Report'),
+                  onPressed: state.canSubmit
+                      ? () async => await notifier.submit()
+                      : null,
+                  icon: state.isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send_rounded, size: 20),
+                  label: Text(state.isSubmitting ? 'Submitting...' : 'Submit Report'),
                   style: ElevatedButton.styleFrom(
-                    disabledBackgroundColor: theme.colorScheme.surface,
-                    disabledForegroundColor: Colors.grey.shade600,
+                    disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.25),
+                    disabledForegroundColor: Colors.white60,
                   ),
                 ),
               ),
@@ -194,7 +260,7 @@ class DailyReportScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 10),
-                Text(next.submitSuccessMessage!),
+                Expanded(child: Text(next.submitSuccessMessage!)),
               ],
             ),
             backgroundColor: const Color(0xFF5C7862), // match primary theme color
@@ -225,16 +291,18 @@ class DailyReportScreen extends ConsumerWidget {
 class _SalesOrderDropdown extends StatelessWidget {
   const _SalesOrderDropdown({
     required this.selectedSO,
+    required this.salesOrders,
     required this.onChanged,
   });
 
   final SalesOrder? selectedSO;
+  final List<SalesOrder> salesOrders;
   final ValueChanged<SalesOrder?> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<SalesOrder>(
-      key: ValueKey(selectedSO),
+      key: ValueKey('${selectedSO?.id}_${salesOrders.length}'),
       initialValue: selectedSO,
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
       decoration: const InputDecoration(
@@ -243,8 +311,11 @@ class _SalesOrderDropdown extends StatelessWidget {
       ),
       hint: const Text('Select sales order'),
       dropdownColor: const Color(0xFF262628),
-      items: mockSalesOrders.map((so) {
-        return DropdownMenuItem(value: so, child: Text(so.label, style: const TextStyle(color: Colors.white)));
+      items: salesOrders.map((so) {
+        return DropdownMenuItem(
+          value: so,
+          child: Text(so.label, style: const TextStyle(color: Colors.white)),
+        );
       }).toList(),
       onChanged: onChanged,
     );
@@ -254,16 +325,18 @@ class _SalesOrderDropdown extends StatelessWidget {
 class _DepartmentDropdown extends StatelessWidget {
   const _DepartmentDropdown({
     required this.selectedDepartment,
+    required this.departments,
     required this.onChanged,
   });
 
   final Department? selectedDepartment;
+  final List<Department> departments;
   final ValueChanged<Department?> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Department>(
-      key: ValueKey(selectedDepartment),
+      key: ValueKey('${selectedDepartment?.id}_${departments.length}'),
       initialValue: selectedDepartment,
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
       decoration: const InputDecoration(
@@ -272,8 +345,11 @@ class _DepartmentDropdown extends StatelessWidget {
       ),
       hint: const Text('Select department'),
       dropdownColor: const Color(0xFF262628),
-      items: mockDepartments.map((dept) {
-        return DropdownMenuItem(value: dept, child: Text(dept.name, style: const TextStyle(color: Colors.white)));
+      items: departments.map((dept) {
+        return DropdownMenuItem(
+          value: dept,
+          child: Text(dept.name, style: const TextStyle(color: Colors.white)),
+        );
       }).toList(),
       onChanged: onChanged,
     );
@@ -296,7 +372,7 @@ class _ActivityDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Activity>(
-      key: ValueKey(selectedActivity),
+      key: ValueKey('${selectedActivity?.id}_${activities.length}'),
       initialValue: selectedActivity,
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
       decoration: InputDecoration(
@@ -308,7 +384,11 @@ class _ActivityDropdown extends StatelessWidget {
       items: activities.map((act) {
         return DropdownMenuItem(
           value: act,
-          child: Text('${act.activityCode} — ${act.activityName}', style: const TextStyle(color: Colors.white)),
+          child: Text(
+            '${act.activityCode} — ${act.activityName}',
+            style: const TextStyle(color: Colors.white),
+            overflow: TextOverflow.ellipsis,
+          ),
         );
       }).toList(),
       onChanged: enabled ? onChanged : null,
@@ -432,6 +512,58 @@ class _TimeEntrySection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Error Banner (duplicate / submit errors) ─────────────────────────────
+
+/// Red error banner displayed when a duplicate report is detected or a
+/// generic submission error occurs. Includes a dismiss icon button.
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({
+    required this.message,
+    required this.onDismiss,
+  });
+
+  final String message;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const errorRed = Color(0xFFC62828);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE), // light red
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: errorRed.withOpacity(0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, color: errorRed, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: errorRed,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onDismiss,
+            child: const Icon(Icons.close, color: errorRed, size: 18),
+          ),
+        ],
+      ),
     );
   }
 }

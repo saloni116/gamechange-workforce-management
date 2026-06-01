@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:workforce_app/main.dart';
 
 void main() {
   testWidgets('App renders with bottom navigation', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const WorkforceApp(),
+      const ProviderScope(
+        child: WorkforceApp(),
+      ),
     );
     await tester.pumpAndSettle();
 

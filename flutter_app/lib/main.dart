@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'app/router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/domain/auth_notifier.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive for local storage (auth tokens, etc.)
+  await Hive.initFlutter();
+  await Hive.openBox('authBox');
+
   runApp(
     const ProviderScope(
       child: WorkforceApp(),
@@ -18,6 +26,10 @@ class WorkforceApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
+    // Sync active auth state with GoRouter listenable (includes role for routing)
+    authChangeNotifier.update(authState.token, authState.isAuthenticated, authState.role);
     return MaterialApp.router(
       title: 'Workforce Productivity',
       debugShowCheckedModeBanner: false,
