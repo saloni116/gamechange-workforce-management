@@ -1,22 +1,30 @@
 import {
+  IsArray,
   IsDateString,
   IsNotEmpty,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
+
+import { Transform, Type } from 'class-transformer';
+
+import { SODepartmentDto } from './so-department.dto';
 
 export class CreateSalesOrderDto {
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value?.toUpperCase())
   soNumber: string;
 
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value?.toUpperCase())
   customerName: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  projectName: string;
+  projectName?: string;
 
   @IsOptional()
   @IsString()
@@ -27,4 +35,10 @@ export class CreateSalesOrderDto {
 
   @IsDateString()
   endDate: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SODepartmentDto)
+  departments?: SODepartmentDto[];
 }

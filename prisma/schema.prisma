@@ -97,6 +97,7 @@ model Department {
 
   activities   Activity[]
   activityLogs ActivityLog[]
+  soDepartments SODepartment[]
 }
 
 model Activity {
@@ -122,6 +123,7 @@ model Activity {
 
   roleActivities     RoleActivity[]
   activityLogs       ActivityLog[]
+  soDepartmentActivities SODepartmentActivity[]
 }
 
 model RoleActivity {
@@ -145,7 +147,7 @@ model SalesOrder {
 
   customerName      String
 
-  projectName       String
+  projectName       String?
 
   soDescription     String?
 
@@ -164,6 +166,7 @@ model SalesOrder {
   updatedAt         DateTime @updatedAt
 
   activityLogs      ActivityLog[]
+  soDepartments     SODepartment[]
 }
 model ActivityLog {
   id                  String         @id @default(uuid())
@@ -276,4 +279,30 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   user        User @relation(fields: [userId], references: [id])
+}
+
+model SODepartment {
+  id            String   @id @default(uuid())
+  soId          String
+  departmentId  String
+  createdAt     DateTime @default(now())
+
+  salesOrder    SalesOrder @relation(fields: [soId], references: [id])
+  department    Department @relation(fields: [departmentId], references: [id])
+
+  soDepartmentActivities SODepartmentActivity[]
+
+  @@unique([soId, departmentId])
+}
+
+model SODepartmentActivity {
+  id               String   @id @default(uuid())
+  soDepartmentId   String
+  activityId       String
+  createdAt        DateTime @default(now())
+
+  soDepartment     SODepartment @relation(fields: [soDepartmentId], references: [id])
+  activity         Activity     @relation(fields: [activityId], references: [id])
+
+  @@unique([soDepartmentId, activityId])
 }

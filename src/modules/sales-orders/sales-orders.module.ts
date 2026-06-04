@@ -4,6 +4,8 @@ import { SalesOrdersController } from '../../controllers/sales-orders.controller
 
 import { SalesOrdersService } from '../../services/sales-orders.service';
 
+import { SOReportsService } from '../../services/so-reports.service';
+
 import { PrismaModule } from '../../database/prisma.module';
 
 @Module({
@@ -11,6 +13,6 @@ import { PrismaModule } from '../../database/prisma.module';
 
   controllers: [SalesOrdersController],
 
-  providers: [SalesOrdersService],
+  providers: [SalesOrdersService, SOReportsService],
 })
 export class SalesOrdersModule {}
