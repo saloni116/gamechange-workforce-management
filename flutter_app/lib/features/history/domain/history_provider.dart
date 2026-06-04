@@ -10,7 +10,7 @@ import '../../daily_report/domain/daily_report_notifier.dart';
 // TASK 4 — History API integration
 // ──────────────────────────────────────────────────────────────────────────
 
-const String _baseUrl = 'https://gamechange-workforce-api.onrender.com/api/v1';
+const String _baseUrl = 'http://localhost:3000/api/v1';
 
 /// Reads the JWT token from Hive authBox for Bearer auth.
 String? _getToken() {

@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/mock_data.dart';
 import '../domain/daily_report_notifier.dart';
 
 /// Coworker presence section of the Daily Report form.
 ///
 /// Contains:
-/// - A checkbox to toggle coworker mode.
-/// - When enabled: an Employee ID text field and a Verify button.
+/// - A checkbox to toggle coworker mode. When checked, prompts for verification.
 /// - A green confirmation card on successful verification.
-/// - Red error text on verification failure.
 ///
 /// All state is read from [dailyReportProvider]; mutations flow through
 /// the notifier — this widget is presentation-only.
@@ -21,34 +20,133 @@ class CoworkerSection extends ConsumerStatefulWidget {
 }
 
 class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
-  late final TextEditingController _idController;
+  Future<void> _showCoworkerVerifyDialog(BuildContext context) async {
+    final notifier = ref.read(dailyReportProvider.notifier);
+    final theme = Theme.of(context);
+    final controller = TextEditingController();
+    String? errorMessage;
 
-  @override
-  void initState() {
-    super.initState();
-    final initial = ref.read(dailyReportProvider).coworkerIdInput;
-    _idController = TextEditingController(text: initial);
-  }
+    final result = await showDialog<Coworker?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E1E1E), // matching dark mode color
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.grey.shade800),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.people_outline, color: theme.colorScheme.primary),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Verify Coworker',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Please enter the Employee ID of the coworker working with you.',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Employee ID',
+                      labelStyle: TextStyle(color: Colors.grey.shade400),
+                      hintText: 'e.g. EMP-1042',
+                      hintStyle: TextStyle(color: Colors.grey.shade600),
+                      errorText: errorMessage,
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: theme.colorScheme.primary),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey.shade700),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.redAccent),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.redAccent),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) {
+                      if (errorMessage != null) {
+                        setState(() {
+                          errorMessage = null;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () {
+                    final idInput = controller.text.trim().toUpperCase();
+                    if (idInput.isEmpty) {
+                      setState(() {
+                        errorMessage = 'Employee ID cannot be empty.';
+                      });
+                      return;
+                    }
+                    // Lookup in directory
+                    final match = mockCoworkerDirectory.cast<Coworker?>().firstWhere(
+                      (c) => c!.employeeId.toUpperCase() == idInput,
+                      orElse: () => null,
+                    );
+                    if (match != null) {
+                      Navigator.of(context).pop(match);
+                    } else {
+                      setState(() {
+                        errorMessage = 'Employee does not exist';
+                      });
+                    }
+                  },
+                  child: const Text('Verify'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
 
-  @override
-  void dispose() {
-    _idController.dispose();
-    super.dispose();
+    if (result != null) {
+      notifier.setVerifiedCoworkerDirectly(result);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dailyReportProvider);
     final notifier = ref.read(dailyReportProvider.notifier);
-    final theme = Theme.of(context);
-
-    // Keep controller in sync with state (e.g. when state is reset externally).
-    if (_idController.text != state.coworkerIdInput) {
-      _idController.text = state.coworkerIdInput;
-      _idController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _idController.text.length),
-      );
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,67 +156,25 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
           contentPadding: EdgeInsets.zero,
           title: const Text('Coworker Present?'),
           value: state.hasCoworker,
-          onChanged: (v) => notifier.toggleCoworker(v ?? false),
+          onChanged: (v) {
+            if (v == true) {
+              _showCoworkerVerifyDialog(context);
+            } else {
+              notifier.clearCoworker();
+            }
+          },
           controlAffinity: ListTileControlAffinity.leading,
           dense: true,
         ),
 
-        // ── ID field + Verify ───────────────────────────────────────────
-        if (state.hasCoworker) ...[
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _idController,
-                  decoration: const InputDecoration(
-                    labelText: 'Employee ID',
-                    hintText: 'e.g. EMP-1042',
-                  ),
-                  textCapitalization: TextCapitalization.characters,
-                  onChanged: notifier.setCoworkerId,
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                height: 48,
-                child: FilledButton.tonal(
-                  onPressed: state.isVerifyingCoworker
-                      ? null
-                      : () => notifier.verifyCoworker(),
-                  child: state.isVerifyingCoworker
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Verify'),
-                ),
-              ),
-            ],
+        // ── Success card ──────────────────────────────────────────────
+        if (state.hasCoworker && state.verifiedCoworker != null) ...[
+          const SizedBox(height: 12),
+          _VerifiedCoworkerCard(
+            name: state.verifiedCoworker!.name,
+            employeeId: state.verifiedCoworker!.employeeId,
+            department: state.verifiedCoworker!.department,
           ),
-
-          // ── Error text ────────────────────────────────────────────────
-          if (state.coworkerError != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              state.coworkerError!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ],
-
-          // ── Success card ──────────────────────────────────────────────
-          if (state.verifiedCoworker != null) ...[
-            const SizedBox(height: 12),
-            _VerifiedCoworkerCard(
-              name: state.verifiedCoworker!.name,
-              employeeId: state.verifiedCoworker!.employeeId,
-              department: state.verifiedCoworker!.department,
-            ),
-          ],
         ],
       ],
     );

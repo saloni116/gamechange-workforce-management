@@ -443,7 +443,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                             ),
                           ),
                         ),
-                      ];
+                      );
 
                       if (isRework) {
                         return GestureDetector(

@@ -13,6 +13,14 @@ class Department {
   final String name;
 
   const Department({required this.id, required this.name});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Department && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 const List<Department> mockDepartments = [
@@ -42,6 +50,14 @@ class Activity {
     required this.standardManMinutes,
     required this.isInRole,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Activity && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 const List<Activity> mockActivities = [
@@ -157,15 +173,50 @@ const List<Activity> mockActivities = [
 class SalesOrder {
   final String id;
   final String label;
+  final List<String> departmentIds;
+  final List<String> activityIds;
 
-  const SalesOrder({required this.id, required this.label});
+  const SalesOrder({
+    required this.id, 
+    required this.label,
+    this.departmentIds = const [],
+    this.activityIds = const [],
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SalesOrder && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 const List<SalesOrder> mockSalesOrders = [
-  SalesOrder(id: 'SO-2025-001', label: 'SO-2025-001'),
-  SalesOrder(id: 'SO-2025-002', label: 'SO-2025-002'),
-  SalesOrder(id: 'SO-2025-003', label: 'SO-2025-003'),
-  SalesOrder(id: 'SO-2025-004', label: 'SO-2025-004'),
+  SalesOrder(
+    id: 'SO-2025-001',
+    label: 'SO-2025-001',
+    departmentIds: ['DEPT-01', 'DEPT-03'],
+    activityIds: ['ACT-001', 'ACT-002', 'ACT-007', 'ACT-008'],
+  ),
+  SalesOrder(
+    id: 'SO-2025-002',
+    label: 'SO-2025-002',
+    departmentIds: ['DEPT-01', 'DEPT-03'],
+    activityIds: ['ACT-002', 'ACT-007', 'ACT-008'],
+  ),
+  SalesOrder(
+    id: 'SO-2025-003',
+    label: 'SO-2025-003',
+    departmentIds: ['DEPT-02', 'DEPT-03'],
+    activityIds: ['ACT-006', 'ACT-007', 'ACT-008'],
+  ),
+  SalesOrder(
+    id: 'SO-2025-004',
+    label: 'SO-2025-004',
+    departmentIds: ['DEPT-04', 'DEPT-03'],
+    activityIds: ['ACT-010', 'ACT-011', 'ACT-012', 'ACT-007', 'ACT-008'],
+  ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -182,6 +233,16 @@ class Coworker {
     required this.name,
     required this.department,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Coworker &&
+          runtimeType == other.runtimeType &&
+          employeeId == other.employeeId;
+
+  @override
+  int get hashCode => employeeId.hashCode;
 }
 
 /// Mock directory used by [DailyReportNotifier.verifyCoworker] to simulate

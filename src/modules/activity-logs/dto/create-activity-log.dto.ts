@@ -31,4 +31,12 @@ export class CreateActivityLogDto {
   @IsOptional()
   @IsArray()
   coworkerEmployeeIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  startTime?: string;
+
+  @IsOptional()
+  @IsString()
+  endTime?: string;
 }

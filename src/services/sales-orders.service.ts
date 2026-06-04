@@ -56,6 +56,18 @@ export class SalesOrdersService {
             new Date(
               createSalesOrderDto.endDate,
             ),
+
+          departments: createSalesOrderDto.departmentIds
+            ? {
+                connect: createSalesOrderDto.departmentIds.map((id) => ({ id })),
+              }
+            : undefined,
+
+          activities: createSalesOrderDto.activityIds
+            ? {
+                connect: createSalesOrderDto.activityIds.map((id) => ({ id })),
+              }
+            : undefined,
         },
       });
 
@@ -67,11 +79,17 @@ export class SalesOrdersService {
     };
   }
 
-    async getSalesOrders() {
+  async getSalesOrders() {
     const salesOrders =
       await this.prisma.salesOrder.findMany({
         where: {
           isDeleted: false,
+          isActive: true,
+        },
+
+        include: {
+          departments: true,
+          activities: true,
         },
 
         orderBy: {
@@ -79,35 +97,82 @@ export class SalesOrdersService {
         },
       });
 
-    return salesOrders.map((so) => ({
-      id: so.id,
+    // Load all departments and activities to resolve fallback mappings by name if needed
+    const allDepartments = await this.prisma.department.findMany();
+    const allActivities = await this.prisma.activity.findMany();
 
-      soNumber:
-        so.soNumber,
+    return salesOrders.map((so) => {
+      let departments = so.departments.map((d) => ({
+        id: d.id,
+        name: d.name,
+      }));
 
-      customerName:
-        so.customerName,
+      let activities = so.activities.map((a) => ({
+        id: a.id,
+        activityName: a.activityName,
+      }));
 
-      projectName:
-        so.projectName,
+      // Fallback parsing of soDescription JSON for older or dynamically added records
+      if (so.soDescription) {
+        try {
+          const descStr = so.soDescription.trim();
+          if (descStr.startsWith('{') && descStr.endsWith('}')) {
+            const parsed = JSON.parse(descStr);
+            
+            // Resolve departments by name if empty
+            if (departments.length === 0 && Array.isArray(parsed.allowedDepartments)) {
+              const allowedNames = parsed.allowedDepartments.map((n: any) => n.toString().toLowerCase().trim());
+              departments = allDepartments
+                .filter((d) => allowedNames.includes(d.name.toLowerCase().trim()))
+                .map((d) => ({ id: d.id, name: d.name }));
+            }
 
-      soDescription:
-        so.soDescription,
+            // Resolve activities by name if empty
+            if (activities.length === 0 && Array.isArray(parsed.allowedActivities)) {
+              const allowedNames = parsed.allowedActivities.map((n: any) => n.toString().toLowerCase().trim());
+              activities = allActivities
+                .filter((a) => allowedNames.includes(a.activityName.toLowerCase().trim()))
+                .map((a) => ({ id: a.id, activityName: a.activityName }));
+            }
+          }
+        } catch (e) {
+          // Ignored if not JSON format
+        }
+      }
 
-      startDate:
-        so.startDate,
+      return {
+        id: so.id,
 
-      endDate:
-        so.endDate,
+        soNumber:
+          so.soNumber,
 
-      status:
-        so.status,
+        customerName:
+          so.customerName,
 
-      isActive:
-        so.isActive,
+        projectName:
+          so.projectName,
 
-      createdAt:
-        so.createdAt,
-    }));
+        soDescription:
+          so.soDescription,
+
+        startDate:
+          so.startDate,
+
+        endDate:
+          so.endDate,
+
+        status:
+          so.status,
+
+        isActive:
+          so.isActive,
+
+        createdAt:
+          so.createdAt,
+
+        departments,
+        activities,
+      };
+    });
   }
 }

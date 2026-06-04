@@ -36,9 +36,7 @@ export class SalesOrdersController {
     );
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
 
   @Get()
   async getSalesOrders() {

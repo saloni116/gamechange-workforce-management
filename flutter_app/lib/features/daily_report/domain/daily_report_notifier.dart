@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../data/mock_data.dart';
 import 'daily_report_state.dart';
+import '../../auth/domain/auth_notifier.dart';
 
 /// Riverpod [StateNotifier] that owns all mutations and validations for the
 /// Daily Report form.
@@ -21,7 +22,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 
   // ── Backend base URL ─────────────────────────────────────────────────────
   static const String _baseUrl =
-      'https://gamechange-workforce-api.onrender.com/api/v1';
+      'http://localhost:3000/api/v1';
 
   /// Dio instance for operations API calls.
   final Dio _dio = Dio(BaseOptions(
@@ -29,16 +30,16 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     receiveTimeout: const Duration(seconds: 12),
   ));
 
-  // ── Live lists (populated from API, fall back to mock) ───────────────────
+  // ── Live lists (populated from API) ──────────────────────────────────────
 
-  /// Live departments loaded from the API. Falls back to [mockDepartments].
-  List<Department> _liveDepartments = List.from(mockDepartments);
+  /// Live departments loaded from the API.
+  List<Department> _liveDepartments = [];
 
-  /// Live activities loaded from the API. Falls back to [mockActivities].
-  List<Activity> _liveActivities = List.from(mockActivities);
+  /// Live activities loaded from the API.
+  List<Activity> _liveActivities = [];
 
-  /// Live sales orders loaded from the API. Falls back to [mockSalesOrders].
-  List<SalesOrder> _liveSalesOrders = List.from(mockSalesOrders);
+  /// Live sales orders loaded from the API.
+  List<SalesOrder> _liveSalesOrders = [];
 
   // ── Exposed lists for UI ─────────────────────────────────────────────────
 
@@ -96,33 +97,42 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
                 ))
             .where((d) => d.id.isNotEmpty && d.name.isNotEmpty)
             .toList();
-        if (parsed.isNotEmpty) {
-          _liveDepartments = parsed;
-          debugPrint('✅ Departments loaded from API: ${parsed.length}');
-        }
+        _liveDepartments = parsed;
+        debugPrint('✅ Departments loaded from API: ${parsed.length}');
       }
 
       // ── Map Activities ───────────────────────────────────────────────
       final actData = results[1].data;
       if (actData is List) {
+        final userRole = Hive.box('authBox').get('role')?.toString();
         final parsed = actData
-            .map((a) => Activity(
-                  id: a['id']?.toString() ?? '',
-                  activityCode: a['activityCode']?.toString() ?? '',
-                  activityName: a['activityName']?.toString() ?? '',
-                  departmentId: a['departmentId']?.toString() ?? '',
-                  standardManMinutes:
-                      (a['standardManMinutes'] as num?)?.toDouble() ?? 0.0,
-                  // isInRole is derived from RoleActivity join; API may include
-                  // it as a boolean. Default true if absent (safe fallback).
-                  isInRole: a['isInRole'] as bool? ?? true,
-                ))
+            .map((a) {
+              final restrictedRole = a['restrictedRole'];
+              final String? restrictedRoleName = restrictedRole is Map ? restrictedRole['name']?.toString() : null;
+
+              // If there's no restriction, or user is Admin, or user role matches restricted role name
+              final bool isInRole = restrictedRoleName == null ||
+                  userRole == null ||
+                  userRole.toLowerCase() == 'admin' ||
+                  userRole.toLowerCase() == restrictedRoleName.toLowerCase();
+
+              return Activity(
+                id: a['id']?.toString() ?? '',
+                activityCode: a['activityCode']?.toString() ?? '',
+                activityName: a['activityName']?.toString() ?? '',
+                departmentId: a['departmentId']?.toString() ??
+                    (a['department'] is Map
+                        ? a['department']['id']?.toString() ?? ''
+                        : ''),
+                standardManMinutes:
+                    (a['standardManMinutes'] as num?)?.toDouble() ?? 0.0,
+                isInRole: isInRole,
+              );
+            })
             .where((a) => a.id.isNotEmpty)
             .toList();
-        if (parsed.isNotEmpty) {
-          _liveActivities = parsed;
-          debugPrint('✅ Activities loaded from API: ${parsed.length}');
-        }
+        _liveActivities = parsed;
+        debugPrint('✅ Activities loaded from API: ${parsed.length}');
       }
 
       // ── Map Sales Orders ─────────────────────────────────────────────
@@ -133,19 +143,40 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
               // soNumber is the display label; id is the UUID
               final soNumber = s['soNumber']?.toString() ?? '';
               final id = s['id']?.toString() ?? '';
-              return SalesOrder(id: id, label: soNumber);
+              
+              final List<String> deptIds = [];
+              if (s['departments'] is List) {
+                for (var d in s['departments']) {
+                  if (d is Map && d['id'] != null) {
+                    deptIds.add(d['id'].toString());
+                  }
+                }
+              }
+              
+              final List<String> actIds = [];
+              if (s['activities'] is List) {
+                for (var a in s['activities']) {
+                  if (a is Map && a['id'] != null) {
+                    actIds.add(a['id'].toString());
+                  }
+                }
+              }
+
+              return SalesOrder(
+                id: id, 
+                label: soNumber,
+                departmentIds: deptIds,
+                activityIds: actIds,
+              );
             })
             .where((s) => s.id.isNotEmpty)
             .toList();
-        if (parsed.isNotEmpty) {
-          _liveSalesOrders = parsed;
-          debugPrint('✅ Sales Orders loaded from API: ${parsed.length}');
-        }
+        _liveSalesOrders = parsed;
+        debugPrint('✅ Sales Orders loaded from API: ${parsed.length} -> ${parsed.map((e) => e.label).toList()}');
       }
     } on DioException catch (e) {
-      // Network/auth failure → keep mock data intact
       debugPrint(
-        '⚠️ Dropdown API unreachable (${e.type.name}), using mock data fallback.',
+        '⚠️ Dropdown API unreachable (${e.type.name}).',
       );
     } catch (e) {
       debugPrint('⚠️ Unexpected error loading dropdowns: $e');
@@ -160,10 +191,33 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   // Sales Order
   // ────────────────────────────────────────────────────────────────────────
 
+  List<Department> getDepartmentsForSalesOrder(SalesOrder? so) {
+    if (so == null) return const <Department>[];
+    return _liveDepartments
+        .where((d) => so.departmentIds.contains(d.id))
+        .toList();
+  }
+
   void selectSalesOrder(SalesOrder? so) {
+    final allowedDepts = getDepartmentsForSalesOrder(so);
+    
+    Department? autoDept;
+    if (so != null && allowedDepts.isNotEmpty) {
+      autoDept = allowedDepts.firstWhere(
+        (d) => !d.name.toUpperCase().contains('QUALITY') && !d.name.toUpperCase().contains('QC'),
+        orElse: () => allowedDepts.first,
+      );
+    }
+
     state = state.copyWith(
       selectedSO: so,
       clearSelectedSO: so == null,
+      selectedDepartment: autoDept,
+      clearSelectedDepartment: autoDept == null,
+      selectedActivity: null,
+      clearSelectedActivity: true,
+      isOtherActivity: false,
+      otherActivityReason: '',
     );
   }
 
@@ -259,6 +313,24 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   // TASK 2 — Coworker (mock verification preserved — no API endpoint yet)
   // ────────────────────────────────────────────────────────────────────────
 
+  void setVerifiedCoworkerDirectly(Coworker coworker) {
+    state = state.copyWith(
+      hasCoworker: true,
+      coworkerIdInput: coworker.employeeId,
+      verifiedCoworker: coworker,
+      clearCoworkerError: true,
+    );
+  }
+
+  void clearCoworker() {
+    state = state.copyWith(
+      hasCoworker: false,
+      coworkerIdInput: '',
+      clearVerifiedCoworker: true,
+      clearCoworkerError: true,
+    );
+  }
+
   /// Toggles the "has coworker" switch. When turned off, clears all
   /// coworker‑related fields.
   void toggleCoworker(bool enabled) {
@@ -286,9 +358,6 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   /// - Simulates a 200 ms network delay.
   /// - Looks up the ID in [mockCoworkerDirectory].
   /// - Sets either [verifiedCoworker] or [coworkerError].
-  ///
-  /// NOTE: Preserved as mock — no dedicated employee lookup API endpoint
-  /// is available yet. Will be upgraded to live API when endpoint ships.
   Future<void> verifyCoworker() async {
     final idToFind = state.coworkerIdInput.trim();
 
@@ -304,18 +373,25 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       clearVerifiedCoworker: true,
     );
 
-    // Accept entered employee ID directly. 
-    // Backend will perform validation during submit.
-    final match = Coworker(
-      employeeId: idToFind,
-      name: idToFind, // Temporary display name
-      department: 'Verified on Submit',
+    // Look up in mockCoworkerDirectory
+    final match = mockCoworkerDirectory.cast<Coworker?>().firstWhere(
+      (c) => c!.employeeId.toUpperCase() == idToFind.toUpperCase(),
+      orElse: () => null,
     );
 
-    state = state.copyWith(
-      verifiedCoworker: match,
-      isVerifyingCoworker: false,
-    );
+    if (match != null) {
+      state = state.copyWith(
+        verifiedCoworker: match,
+        isVerifyingCoworker: false,
+        clearCoworkerError: true,
+      );
+    } else {
+      state = state.copyWith(
+        coworkerError: 'Employee does not exist',
+        isVerifyingCoworker: false,
+        clearVerifiedCoworker: true,
+      );
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -423,6 +499,16 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
     bool apiSuccess = false;
 
     try {
+      final now = DateTime.now();
+      final start = state.startTime ?? const TimeOfDay(hour: 8, minute: 0);
+      final end = state.endTime ?? const TimeOfDay(hour: 9, minute: 0);
+
+      final startDateTime = DateTime(now.year, now.month, now.day, start.hour, start.minute);
+      var endDateTime = DateTime(now.year, now.month, now.day, end.hour, end.minute);
+      if (endDateTime.isBefore(startDateTime)) {
+        endDateTime = endDateTime.add(const Duration(days: 1));
+      }
+
       // Build the API request body as per backend spec
       final apiBody = <String, dynamic>{
         'soId': state.selectedSO!.id,
@@ -434,6 +520,8 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
                 state.verifiedCoworker != null
             ? [state.verifiedCoworker!.employeeId]
             : <String>[],
+        'startTime': startDateTime.toIso8601String(),
+        'endTime': endDateTime.toIso8601String(),
       };
 
       final String finalUrl = '$_baseUrl/activity-logs';
@@ -601,28 +689,19 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   /// to load it back for rework/editing.
   void loadReportForRework(SubmittedReport oldReport) {
     // 1. Resolve SalesOrder — check live list first, fall back to mock
-    final soList = _liveSalesOrders.isNotEmpty
-        ? _liveSalesOrders
-        : mockSalesOrders;
-    final so = soList.cast<SalesOrder?>().firstWhere(
+    final so = _liveSalesOrders.cast<SalesOrder?>().firstWhere(
           (s) => s!.id == oldReport.salesOrderId,
           orElse: () => null,
         );
 
     // 2. Resolve Department
-    final deptList = _liveDepartments.isNotEmpty
-        ? _liveDepartments
-        : mockDepartments;
-    final dept = deptList.cast<Department?>().firstWhere(
+    final dept = _liveDepartments.cast<Department?>().firstWhere(
           (d) => d!.id == oldReport.departmentId,
           orElse: () => null,
         );
 
     // 3. Resolve Activity
-    final actList = _liveActivities.isNotEmpty
-        ? _liveActivities
-        : mockActivities;
-    final activity = actList.cast<Activity?>().firstWhere(
+    final activity = _liveActivities.cast<Activity?>().firstWhere(
           (a) => a!.id == oldReport.activityId,
           orElse: () => null,
         );
@@ -700,5 +779,8 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 /// Global Riverpod provider for the Daily Report feature.
 final dailyReportProvider =
     StateNotifierProvider<DailyReportNotifier, DailyReportState>(
-  (ref) => DailyReportNotifier(),
+  (ref) {
+    ref.watch(authProvider);
+    return DailyReportNotifier();
+  },
 );

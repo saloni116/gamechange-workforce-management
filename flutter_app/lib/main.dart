@@ -28,8 +28,6 @@ class WorkforceApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
 
-    // Sync active auth state with GoRouter listenable (includes role for routing)
-    authChangeNotifier.update(authState.token, authState.isAuthenticated, authState.role);
     return MaterialApp.router(
       title: 'Workforce Productivity',
       debugShowCheckedModeBanner: false,

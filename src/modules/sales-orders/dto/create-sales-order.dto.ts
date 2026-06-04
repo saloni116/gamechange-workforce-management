@@ -27,4 +27,12 @@ export class CreateSalesOrderDto {
 
   @IsDateString()
   endDate: string;
+
+  @IsOptional()
+  @IsString({ each: true })
+  departmentIds?: string[];
+
+  @IsOptional()
+  @IsString({ each: true })
+  activityIds?: string[];
 }

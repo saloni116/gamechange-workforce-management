@@ -27,7 +27,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // ── Backend base URL ────────────────────────────────────────────────────
   static const String _baseUrl =
-      'https://gamechange-workforce-api.onrender.com/api/v1';
+      'http://localhost:3000/api/v1';
 
   /// Dio instance for auth API calls.
   final Dio _dio = Dio(BaseOptions(

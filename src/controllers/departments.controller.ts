@@ -41,18 +41,14 @@ export class DepartmentsController {
     );
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
 
   @Get()
   async getDepartments() {
     return this.departmentsService.getDepartments();
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
 
   @Get(':id')
   async getDepartmentById(

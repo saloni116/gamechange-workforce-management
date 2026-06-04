@@ -24,7 +24,7 @@ class DailyReportScreen extends ConsumerWidget {
 
     // ── Live lists from notifier (API data with mock fallback) ──────────
     final allActivities = notifier.activities;
-    final allDepartments = notifier.departments;
+    final allDepartments = notifier.getDepartmentsForSalesOrder(state.selectedSO);
     final allSalesOrders = notifier.salesOrders;
 
     // ── Activities: filtered by department OR full list ─────────────────
@@ -33,9 +33,15 @@ class DailyReportScreen extends ConsumerWidget {
       // Show ALL activities from live/mock data
       displayedActivities = allActivities.toList();
     } else if (state.selectedDepartment != null) {
-      // Normal mode: only department-filtered activities
+      // Normal mode: only department-filtered activities that are within the user's assigned role
+      // AND associated with the selected Sales Order (if selected)
       displayedActivities = allActivities
-          .where((a) => a.departmentId == state.selectedDepartment!.id)
+          .where((a) =>
+              a.departmentId == state.selectedDepartment!.id &&
+              a.isInRole == true &&
+              (state.selectedSO == null ||
+                  state.selectedSO!.activityIds.isEmpty ||
+                  state.selectedSO!.activityIds.contains(a.id)))
           .toList();
     } else {
       displayedActivities = <Activity>[];
@@ -103,6 +109,7 @@ class DailyReportScreen extends ConsumerWidget {
               _DepartmentDropdown(
                 selectedDepartment: state.selectedDepartment,
                 departments: allDepartments,
+                enabled: state.selectedSO != null,
                 onChanged: notifier.selectDepartment,
               ),
               const SizedBox(height: 12),
@@ -326,11 +333,13 @@ class _DepartmentDropdown extends StatelessWidget {
   const _DepartmentDropdown({
     required this.selectedDepartment,
     required this.departments,
+    required this.enabled,
     required this.onChanged,
   });
 
   final Department? selectedDepartment;
   final List<Department> departments;
+  final bool enabled;
   final ValueChanged<Department?> onChanged;
 
   @override
@@ -339,11 +348,12 @@ class _DepartmentDropdown extends StatelessWidget {
       key: ValueKey('${selectedDepartment?.id}_${departments.length}'),
       initialValue: selectedDepartment,
       icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Department',
-        prefixIcon: Icon(Icons.business_outlined),
+        prefixIcon: const Icon(Icons.business_outlined),
+        hintText: enabled ? 'Select department' : 'Select a sales order first',
       ),
-      hint: const Text('Select department'),
+      hint: Text(enabled ? 'Select department' : 'Select a sales order first'),
       dropdownColor: const Color(0xFF262628),
       items: departments.map((dept) {
         return DropdownMenuItem(
@@ -351,7 +361,7 @@ class _DepartmentDropdown extends StatelessWidget {
           child: Text(dept.name, style: const TextStyle(color: Colors.white)),
         );
       }).toList(),
-      onChanged: onChanged,
+      onChanged: enabled ? onChanged : null,
     );
   }
 }
@@ -396,7 +406,7 @@ class _ActivityDropdown extends StatelessWidget {
   }
 }
 
-class _OtherActivityWarning extends StatelessWidget {
+class _OtherActivityWarning extends StatefulWidget {
   const _OtherActivityWarning({
     required this.reason,
     required this.onChanged,
@@ -404,6 +414,36 @@ class _OtherActivityWarning extends StatelessWidget {
 
   final String reason;
   final ValueChanged<String> onChanged;
+
+  @override
+  State<_OtherActivityWarning> createState() => _OtherActivityWarningState();
+}
+
+class _OtherActivityWarningState extends State<_OtherActivityWarning> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.reason);
+  }
+
+  @override
+  void didUpdateWidget(covariant _OtherActivityWarning oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.reason != _controller.text) {
+      _controller.text = widget.reason;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -437,6 +477,7 @@ class _OtherActivityWarning extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           TextField(
+            controller: _controller,
             decoration: InputDecoration(
               labelText: 'Reason (required)',
               hintText: 'Why are you performing this?',
@@ -447,17 +488,12 @@ class _OtherActivityWarning extends StatelessWidget {
               ),
             ),
             maxLines: 2,
-            onChanged: onChanged,
-            controller: _OtherActivityReasonController(reason),
+            onChanged: widget.onChanged,
           ),
         ],
       ),
     );
   }
-}
-
-class _OtherActivityReasonController extends TextEditingController {
-  _OtherActivityReasonController(String initial) : super(text: initial);
 }
 
 class _TimeEntrySection extends StatelessWidget {

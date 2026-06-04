@@ -83,9 +83,13 @@ export class ActivityLogsService {
 
           slots: {
             create: {
-              startTime: new Date(),
+              startTime: createActivityLogDto.startTime
+                ? new Date(createActivityLogDto.startTime)
+                : new Date(),
 
-              endTime: new Date(),
+              endTime: createActivityLogDto.endTime
+                ? new Date(createActivityLogDto.endTime)
+                : new Date(),
 
               durationMinutes:
                 createActivityLogDto.durationMinutes,

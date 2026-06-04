@@ -63,48 +63,78 @@ async function main() {
   });
 
   // 4. Create Activities
-  await prisma.activity.createMany({
-    data: [
-      { activityName: 'Frame Assembly', standardManMinutes: 120, departmentId: assemblyDept.id },
-      { activityName: 'Wiring Harness Install', standardManMinutes: 90, departmentId: assemblyDept.id },
-      { activityName: 'Visual Inspection', standardManMinutes: 45, departmentId: qcDept.id },
-      { activityName: 'Quality Check', standardManMinutes: 60, departmentId: qcDept.id },
-      { activityName: 'Welding Area Cleanup', standardManMinutes: 30, departmentId: weldingDept.id },
-      { activityName: 'Surface Prep & Sanding', standardManMinutes: 75, departmentId: paintingDept.id },
-    ],
+  const frameAssembly = await prisma.activity.create({
+    data: { activityName: 'Frame Assembly', standardManMinutes: 120, departmentId: assemblyDept.id }
+  });
+  const wiringHarness = await prisma.activity.create({
+    data: { activityName: 'Wiring Harness Install', standardManMinutes: 90, departmentId: assemblyDept.id }
+  });
+  const visualInspection = await prisma.activity.create({
+    data: { activityName: 'Visual Inspection', standardManMinutes: 45, departmentId: qcDept.id }
+  });
+  const qualityCheck = await prisma.activity.create({
+    data: { activityName: 'Quality Check', standardManMinutes: 60, departmentId: qcDept.id }
+  });
+  const weldingCleanup = await prisma.activity.create({
+    data: { activityName: 'Welding Area Cleanup', standardManMinutes: 30, departmentId: weldingDept.id }
+  });
+  const surfacePrep = await prisma.activity.create({
+    data: { activityName: 'Surface Prep & Sanding', standardManMinutes: 75, departmentId: paintingDept.id }
   });
 
   // 5. Create Sales Orders
-  await prisma.salesOrder.createMany({
-    data: [
-      {
-        soNumber: 'SO-2025-001',
-        customerName: 'Aero Dynamics Inc',
-        projectName: 'Chassis Frame Assembly',
-        soDescription: 'Primary chassis frame building and verification',
-        startDate: new Date('2025-01-01'),
-        endDate: new Date('2025-12-31'),
-        status: 'ACTIVE',
+  await prisma.salesOrder.create({
+    data: {
+      soNumber: 'SO-2025-001',
+      customerName: 'Aero Dynamics Inc',
+      projectName: 'Chassis Frame Assembly',
+      soDescription: 'Primary chassis frame building and verification',
+      startDate: new Date('2025-01-01'),
+      endDate: new Date('2025-12-31'),
+      status: 'ACTIVE',
+      departments: {
+        connect: [{ id: assemblyDept.id }, { id: qcDept.id }]
       },
-      {
-        soNumber: 'SO-2025-002',
-        customerName: 'Titanium Labs',
-        projectName: 'Control Panel Assembly',
-        soDescription: 'Electrical and electronics harness installation',
-        startDate: new Date('2025-02-01'),
-        endDate: new Date('2025-10-31'),
-        status: 'ACTIVE',
+      activities: {
+        connect: [{ id: frameAssembly.id }, { id: wiringHarness.id }, { id: visualInspection.id }, { id: qualityCheck.id }]
+      }
+    }
+  });
+
+  await prisma.salesOrder.create({
+    data: {
+      soNumber: 'SO-2025-002',
+      customerName: 'Titanium Labs',
+      projectName: 'Control Panel Assembly',
+      soDescription: 'Electrical and electronics harness installation',
+      startDate: new Date('2025-02-01'),
+      endDate: new Date('2025-10-31'),
+      status: 'ACTIVE',
+      departments: {
+        connect: [{ id: assemblyDept.id }, { id: qcDept.id }]
       },
-      {
-        soNumber: 'SO-2025-003',
-        customerName: 'Global Heavy Industries',
-        projectName: 'Heavy Structure Fabrication',
-        soDescription: 'Arc welding and grinding tasks',
-        startDate: new Date('2025-03-01'),
-        endDate: new Date('2025-09-30'),
-        status: 'ACTIVE',
+      activities: {
+        connect: [{ id: wiringHarness.id }, { id: visualInspection.id }, { id: qualityCheck.id }]
+      }
+    }
+  });
+
+  await prisma.salesOrder.create({
+    data: {
+      soNumber: 'SO-2025-003',
+      customerName: 'Global Heavy Industries',
+      projectName: 'Heavy Structure Fabrication',
+      soDescription: 'Arc welding and grinding tasks',
+      startDate: new Date('2025-03-01'),
+      endDate: new Date('2025-09-30'),
+      status: 'ACTIVE',
+      departments: {
+        connect: [{ id: weldingDept.id }, { id: qcDept.id }]
       },
-    ],
+      activities: {
+        connect: [{ id: weldingCleanup.id }, { id: visualInspection.id }, { id: qualityCheck.id }]
+      }
+    }
   });
 
   console.log('🌱 Database seeded successfully!');

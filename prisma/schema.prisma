@@ -97,6 +97,7 @@ model Department {
 
   activities   Activity[]
   activityLogs ActivityLog[]
+  salesOrders  SalesOrder[] @relation("SalesOrderDepartments")
 }
 
 model Activity {
@@ -122,6 +123,7 @@ model Activity {
 
   roleActivities     RoleActivity[]
   activityLogs       ActivityLog[]
+  salesOrders        SalesOrder[] @relation("SalesOrderActivities")
 }
 
 model RoleActivity {
@@ -164,6 +166,8 @@ model SalesOrder {
   updatedAt         DateTime @updatedAt
 
   activityLogs      ActivityLog[]
+  departments       Department[] @relation("SalesOrderDepartments")
+  activities        Activity[]   @relation("SalesOrderActivities")
 }
 model ActivityLog {
   id                  String         @id @default(uuid())
