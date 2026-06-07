@@ -403,4 +403,50 @@ export class UsersService {
         'User deleted successfully',
     };
   }
+
+  async changePassword(
+    id: string,
+    changePasswordDto: { currentPassword?: string; newPassword?: string },
+  ) {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Current password and new password are required');
+    }
+
+    const isCurrentPasswordValid = await PasswordUtil.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedNewPassword = await PasswordUtil.hash(newPassword);
+
+    await this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        passwordHash: hashedNewPassword,
+      },
+    });
+
+    return {
+      message: 'Password updated successfully',
+    };
+  }
 }

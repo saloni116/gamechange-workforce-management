@@ -15,6 +15,7 @@ import { ActivitiesModule } from './modules/activities/activities.module';
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { ActivityLogsModule } from './modules/activity-logs/activity-logs.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 
     DashboardModule,
 
+    RolesModule,
+
   ],
 })
-export class AppModule {}
+export class AppModule {}

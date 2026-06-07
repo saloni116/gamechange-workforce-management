@@ -144,11 +144,15 @@ export class SOReportsService {
     const salesOrders =
       await this.prisma.salesOrder.findMany({
         where: soWhere,
-        include: {
-          soDepartments: true,
-        },
         orderBy: { createdAt: 'desc' },
       });
+
+    const activeDepartmentsCount = await this.prisma.department.count({
+      where: {
+        isActive: true,
+        isDeleted: false,
+      },
+    });
 
     const logWhere =
       this.buildActivityLogWhere(undefined, filters);
@@ -217,7 +221,7 @@ export class SOReportsService {
         customerName: so.customerName,
         startDate: so.startDate,
         endDate: so.endDate,
-        departments: so.soDepartments.length,
+        departments: activeDepartmentsCount,
         totalEmployees,
         totalActivities,
         actualHours,

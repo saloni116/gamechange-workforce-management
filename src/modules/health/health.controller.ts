@@ -7,6 +7,7 @@ export class HealthController {
     return {
       success: true,
       message: 'GameChange Workforce API is running',
+      dbUrl: process.env.DATABASE_URL,
       timestamp: new Date().toISOString(),
     };
   }

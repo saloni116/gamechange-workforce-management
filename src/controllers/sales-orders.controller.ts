@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -17,6 +19,8 @@ import { SalesOrdersService } from '../services/sales-orders.service';
 import { SOReportsService } from '../services/so-reports.service';
 
 import { CreateSalesOrderDto } from '../modules/sales-orders/dto/create-sales-order.dto';
+
+import { UpdateSalesOrderDto } from '../modules/sales-orders/dto/update-sales-order.dto';
 
 import { UpdateSODepartmentsDto } from '../modules/sales-orders/dto/update-so-departments.dto';
 
@@ -49,10 +53,7 @@ export class SalesOrdersController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getSalesOrders() {
     return this.salesOrdersService.getSalesOrders();
@@ -320,5 +321,29 @@ export class SalesOrdersController {
             'Invalid format. Use xlsx or pdf.',
         });
     }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Admin')
+  @Patch(':id')
+  async updateSalesOrder(
+    @Param('id') id: string,
+    @Body() updateSalesOrderDto: UpdateSalesOrderDto,
+  ) {
+    return this.salesOrdersService.updateSalesOrder(
+      id,
+      updateSalesOrderDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('Admin')
+  @Delete(':id')
+  async deleteSalesOrder(
+    @Param('id') id: string,
+  ) {
+    return this.salesOrdersService.deleteSalesOrder(
+      id,
+    );
   }
 }

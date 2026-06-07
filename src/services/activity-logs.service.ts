@@ -17,6 +17,23 @@ export class ActivityLogsService {
     userId: string,
     createActivityLogDto: CreateActivityLogDto,
   ) {
+    let targetUserId = userId;
+    if (createActivityLogDto.employeeId) {
+      const targetUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { employeeId: createActivityLogDto.employeeId },
+            { id: createActivityLogDto.employeeId }
+          ],
+          isDeleted: false,
+        }
+      });
+      if (!targetUser) {
+        throw new BadRequestException('Target worker not found');
+      }
+      targetUserId = targetUser.id;
+    }
+
     const salesOrder =
       await this.prisma.salesOrder.findFirst({
         where: {
@@ -62,7 +79,7 @@ export class ActivityLogsService {
     const activityLog =
       await this.prisma.activityLog.create({
         data: {
-          userId,
+          userId: targetUserId,
 
           soId:
             createActivityLogDto.soId,
@@ -83,9 +100,25 @@ export class ActivityLogsService {
 
           slots: {
             create: {
-              startTime: new Date(),
+              startTime: (() => {
+                if (createActivityLogDto.startTime) {
+                  const [h, m] = createActivityLogDto.startTime.split(':').map(Number);
+                  const d = new Date();
+                  d.setHours(h, m, 0, 0);
+                  return d;
+                }
+                return new Date();
+              })(),
 
-              endTime: new Date(),
+              endTime: (() => {
+                if (createActivityLogDto.endTime) {
+                  const [h, m] = createActivityLogDto.endTime.split(':').map(Number);
+                  const d = new Date();
+                  d.setHours(h, m, 0, 0);
+                  return d;
+                }
+                return new Date();
+              })(),
 
               durationMinutes:
                 createActivityLogDto.durationMinutes,
