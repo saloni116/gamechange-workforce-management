@@ -22,7 +22,7 @@ async function main() {
     await prisma.role.deleteMany();
 
     // 1. Seed Roles
-    const roleNames = ['Admin', 'Skilled', 'Unskilled Worker'];
+    const roleNames = ['Admin', 'Skilled', 'Trainee'];
     const roles = {};
     for (const name of roleNames) {
       roles[name] = await prisma.role.create({
@@ -45,13 +45,13 @@ async function main() {
       { employeeId: 'EMP-1042', firstName: 'Admin', lastName: 'User', mobile: '9876543210', email: 'admin@workforce.com', role: 'Admin', hash: passwordHash },
       { employeeId: 'EMP-2001', firstName: 'Anita', lastName: 'Sharma', mobile: '9876543211', email: 'anita@workforce.com', role: 'Skilled', hash: passwordHash },
       { employeeId: 'EMP-1990', firstName: 'Harshada', lastName: 'Amrolkar', mobile: '4548512121', email: 'harshada@workforce.com', role: 'Skilled', hash: passwordHash },
-      { employeeId: 'EMP-2003', firstName: 'Saloni', lastName: 'More', mobile: '7852446876', email: 'saloni@workforce.com', role: 'Unskilled Worker', hash: passwordHash },
-      { employeeId: 'EMP-2002', firstName: 'Samarth', lastName: 'Anandrao', mobile: '7258945612', email: 'samarth@workforce.com', role: 'Unskilled Worker', hash: passwordHash },
-      { employeeId: 'MGR001', firstName: 'Kavita', lastName: 'Reddy', mobile: '9876543225', email: 'kavita@workforce.com', role: 'Unskilled Worker', hash: passwordHash },
-      { employeeId: 'SUPER001', firstName: 'Vikram', lastName: 'Singh', mobile: '9876543224', email: 'vikram@workforce.com', role: 'Unskilled Worker', hash: passwordHash },
-      { employeeId: 'TRAINEE002', firstName: 'Sunita', lastName: 'Rao', mobile: '9876543223', email: 'sunita@workforce.com', role: 'Unskilled Worker', hash: passwordHash },
+      { employeeId: 'EMP-2003', firstName: 'Saloni', lastName: 'More', mobile: '7852446876', email: 'saloni@workforce.com', role: 'Trainee', hash: passwordHash },
+      { employeeId: 'EMP-2002', firstName: 'Samarth', lastName: 'Anandrao', mobile: '7258945612', email: 'samarth@workforce.com', role: 'Trainee', hash: passwordHash },
+      { employeeId: 'MGR001', firstName: 'Kavita', lastName: 'Reddy', mobile: '9876543225', email: 'kavita@workforce.com', role: 'Trainee', hash: passwordHash },
+      { employeeId: 'SUPER001', firstName: 'Vikram', lastName: 'Singh', mobile: '9876543224', email: 'vikram@workforce.com', role: 'Trainee', hash: passwordHash },
+      { employeeId: 'TRAINEE002', firstName: 'Sunita', lastName: 'Rao', mobile: '9876543223', email: 'sunita@workforce.com', role: 'Trainee', hash: passwordHash },
       { employeeId: 'SKILLED002', firstName: 'Amit', lastName: 'Patel', mobile: '9876543222', email: 'amit@workforce.com', role: 'Skilled', hash: passwordHash },
-      { employeeId: 'TRAINEE001', firstName: 'Priya', lastName: 'Sharma', mobile: '9876543221', email: 'priya@workforce.com', role: 'Unskilled Worker', hash: passwordHash },
+      { employeeId: 'TRAINEE001', firstName: 'Priya', lastName: 'Sharma', mobile: '9876543221', email: 'priya@workforce.com', role: 'Trainee', hash: passwordHash },
       { employeeId: 'SKILLED001', firstName: 'Rajesh', lastName: 'Kumar', mobile: '9876543220', email: 'rajesh@workforce.com', role: 'Skilled', hash: passwordHash },
     ];
 

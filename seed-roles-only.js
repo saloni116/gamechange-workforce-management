@@ -7,7 +7,7 @@ async function main() {
     console.log('Starting safe role alignment seed...');
 
     // 1. Ensure the 3 roles exist
-    const roleNames = ['Admin', 'Skilled', 'Unskilled Worker'];
+    const roleNames = ['Admin', 'Skilled', 'Trainee'];
     const roles = {};
     for (const name of roleNames) {
       roles[name] = await prisma.role.upsert({
@@ -32,7 +32,7 @@ async function main() {
 
     // 3. Align users to the 3 roles
     for (const user of users) {
-      let targetRole = 'Unskilled Worker';
+      let targetRole = 'Trainee';
       const currentRoleName = user.role?.name || '';
       
       if (currentRoleName.toLowerCase() === 'admin') {
@@ -54,7 +54,7 @@ async function main() {
     const deletedRoles = await prisma.role.deleteMany({
       where: {
         name: {
-          notIn: ['Admin', 'Skilled', 'Unskilled Worker']
+          notIn: ['Admin', 'Skilled', 'Trainee']
         }
       }
     });
