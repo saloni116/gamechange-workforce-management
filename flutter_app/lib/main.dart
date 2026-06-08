@@ -26,12 +26,14 @@ class WorkforceApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
+    ref.watch(authProvider);
 
     return MaterialApp.router(
-      title: 'Workforce Productivity',
+      title: 'GameChange BOS Workforce',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.lightTheme, // Always use light enterprise theme
+      themeMode: ThemeMode.light,
       routerConfig: ref.watch(routerProvider),
     );
   }

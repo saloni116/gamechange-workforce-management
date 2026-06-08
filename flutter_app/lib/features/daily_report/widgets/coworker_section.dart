@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../data/mock_data.dart';
 import '../domain/daily_report_notifier.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Coworker presence section of the Daily Report form.
 ///
@@ -33,18 +35,22 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E1E), // matching dark mode color
+              backgroundColor: AppTheme.cardWhite,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade800),
+                side: const BorderSide(color: AppTheme.borderColor),
               ),
               title: Row(
                 children: [
-                  Icon(Icons.people_outline, color: theme.colorScheme.primary),
+                  const Icon(Icons.people_outline, color: AppTheme.industrialBlue),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'Verify Coworker',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      color: AppTheme.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -52,36 +58,40 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Please enter the Employee ID of the coworker working with you.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: GoogleFonts.inter(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: controller,
                     autofocus: true,
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.inter(
+                      color: AppTheme.textPrimary,
+                      fontSize: 14,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Employee ID',
-                      labelStyle: TextStyle(color: Colors.grey.shade400),
                       hintText: 'e.g. EMP-1042',
-                      hintStyle: TextStyle(color: Colors.grey.shade600),
                       errorText: errorMessage,
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: theme.colorScheme.primary),
-                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppTheme.industrialBlue, width: 2),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.shade700),
-                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppTheme.borderColor, width: 1.5),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       errorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.redAccent),
-                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppTheme.errorRed),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       focusedErrorBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Colors.redAccent),
-                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppTheme.errorRed),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     textCapitalization: TextCapitalization.characters,
@@ -98,14 +108,17 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.inter(color: AppTheme.textSecondary),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
+                    backgroundColor: AppTheme.industrialBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   onPressed: () {
@@ -151,20 +164,40 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Toggle ──────────────────────────────────────────────────────
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Coworker Present?'),
-          value: state.hasCoworker,
-          onChanged: (v) {
-            if (v == true) {
-              _showCoworkerVerifyDialog(context);
-            } else {
-              notifier.clearCoworker();
-            }
-          },
-          controlAffinity: ListTileControlAffinity.leading,
-          dense: true,
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.cardWhite,
+            borderRadius: BorderRadius.circular(12),
+            border: const Border.fromBorderSide(
+              BorderSide(color: AppTheme.borderColor, width: 1),
+            ),
+          ),
+          child: CheckboxListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            activeColor: AppTheme.industrialBlue,
+            title: Text(
+              'Coworker Present?',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            value: state.hasCoworker,
+            onChanged: (v) {
+              if (v == true) {
+                _showCoworkerVerifyDialog(context);
+              } else {
+                notifier.clearCoworker();
+              }
+            },
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+          ),
         ),
 
         // ── Success card ──────────────────────────────────────────────
@@ -200,59 +233,56 @@ class _VerifiedCoworkerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const successGreen = Color(0xFF2E7D32);
-
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.emeraldGreen.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: successGreen.withValues(alpha: 0.5), width: 1),
+        border: Border.all(color: AppTheme.emeraldGreen.withOpacity(0.3), width: 1),
       ),
-      color: successGreen.withValues(alpha: 0.1), // dark-friendly green background
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            const Icon(Icons.check_circle, color: successGreen, size: 32),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: successGreen,
-                    ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: AppTheme.emeraldGreen, size: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.emeraldGreen,
+                    fontSize: 14,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$employeeId  ·  $department',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: successGreen.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                'Credit Shared',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: successGreen,
-                  fontWeight: FontWeight.w600,
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  '$employeeId  ·  $department',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.emeraldGreen.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Credit Shared',
+              style: GoogleFonts.inter(
+                color: AppTheme.emeraldGreen,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

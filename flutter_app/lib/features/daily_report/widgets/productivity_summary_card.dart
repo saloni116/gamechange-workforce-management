@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/daily_report_notifier.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// Displays a reactive productivity summary derived entirely from
 /// [DailyReportState] getters.
@@ -24,15 +26,15 @@ class ProductivitySummaryCard extends ConsumerWidget {
   // ──────────────────────────────────────────────────────────────────────
 
   static Color _scoreColor(double percent) {
-    if (percent >= 90) return const Color(0xFF2E7D32); // green
-    if (percent >= 70) return const Color(0xFFF57F17); // amber
-    return const Color(0xFFC62828); // red
+    if (percent >= 90) return AppTheme.emeraldGreen;
+    if (percent >= 70) return const Color(0xFFF59E0B); // amber
+    return AppTheme.errorRed;
   }
 
   static Color _scoreBgColor(double percent) {
-    if (percent >= 90) return const Color(0xFF2E7D32).withValues(alpha: 0.15);
-    if (percent >= 70) return const Color(0xFFF57F17).withValues(alpha: 0.15);
-    return const Color(0xFFC62828).withValues(alpha: 0.15);
+    if (percent >= 90) return AppTheme.emeraldGreen.withOpacity(0.1);
+    if (percent >= 70) return const Color(0xFFF59E0B).withOpacity(0.1);
+    return AppTheme.errorRed.withOpacity(0.1);
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -55,20 +57,41 @@ class ProductivitySummaryCard extends ConsumerWidget {
     // Clamp progress bar to 0..1 range.
     final progressValue = (productivity / 100).clamp(0.0, 1.0);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: const Border.fromBorderSide(
+          BorderSide(color: AppTheme.borderColor, width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Header ──────────────────────────────────────────────────
-            Text(
-              'Productivity Summary',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                const Icon(Icons.trending_up_rounded, size: 16, color: AppTheme.industrialBlue),
+                const SizedBox(width: 8),
+                Text(
+                  'Productivity Summary',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -133,8 +156,8 @@ class ProductivitySummaryCard extends ConsumerWidget {
               borderRadius: BorderRadius.circular(6),
               child: LinearProgressIndicator(
                 value: progressValue,
-                minHeight: 8,
-                backgroundColor: Colors.grey.shade800,
+                minHeight: 6,
+                backgroundColor: AppTheme.borderColor,
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
@@ -169,24 +192,31 @@ class _MetricTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1C),
-          borderRadius: BorderRadius.circular(8),
+          color: AppTheme.surfaceGrey,
+          borderRadius: BorderRadius.circular(10),
+          border: const Border.fromBorderSide(
+            BorderSide(color: AppTheme.borderColor, width: 1),
+          ),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: theme.colorScheme.primary),
+            Icon(icon, size: 18, color: AppTheme.industrialBlue),
             const SizedBox(height: 4),
             Text(
               value,
-              style: theme.textTheme.titleSmall?.copyWith(
+              style: GoogleFonts.inter(
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.grey.shade600,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w400,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,

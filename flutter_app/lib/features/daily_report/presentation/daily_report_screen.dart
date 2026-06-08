@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../data/mock_data.dart';
 import '../domain/daily_report_notifier.dart';
@@ -8,8 +9,9 @@ import '../domain/daily_report_state.dart';
 import '../widgets/coworker_section.dart';
 import '../widgets/productivity_summary_card.dart';
 import '../widgets/time_picker_row.dart';
+import '../../../core/theme/app_theme.dart';
 
-/// Main Daily Report form screen with Dark Premium Theme.
+/// Main Daily Report form screen — GameChange BOS Enterprise Design.
 class DailyReportScreen extends ConsumerWidget {
   const DailyReportScreen({super.key});
 
@@ -17,12 +19,12 @@ class DailyReportScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dailyReportProvider);
     final notifier = ref.read(dailyReportProvider.notifier);
-    final theme = Theme.of(context);
+
 
     // ── Snackbar on successful submit ──────────────────────────────────
     _listenForSubmitSuccess(context, ref);
 
-    // ── Live lists from notifier (API data with mock fallback) ──────────
+    // ── Live lists from notifier ────────────────────────────────────────
     final allActivities = notifier.activities;
     final allDepartments = notifier.getDepartmentsForSalesOrder(state.selectedSO);
     final allSalesOrders = notifier.salesOrders;
@@ -30,11 +32,8 @@ class DailyReportScreen extends ConsumerWidget {
     // ── Activities: filtered by department OR full list ─────────────────
     final List<Activity> displayedActivities;
     if (state.showAllActivities) {
-      // Show ALL activities from live/mock data
       displayedActivities = allActivities.toList();
     } else if (state.selectedDepartment != null) {
-      // Normal mode: only department-filtered activities that are within the user's assigned role
-      // AND associated with the selected Sales Order (if selected)
       displayedActivities = allActivities
           .where((a) =>
               a.departmentId == state.selectedDepartment!.id &&
@@ -50,13 +49,38 @@ class DailyReportScreen extends ConsumerWidget {
     final bool endTimeBeforeStart = _isEndBeforeStart(state);
 
     return Scaffold(
+      backgroundColor: AppTheme.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Log New Activity'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.cardWhite,
         elevation: 0,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          color: AppTheme.textPrimary,
           onPressed: () => context.pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Log New Activity',
+              style: GoogleFonts.inter(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimary,
+                letterSpacing: -0.3,
+              ),
+            ),
+            Text(
+              'GameChange BOS Workforce',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
         ),
         actions: [
           if (state.isLoadingDropdowns)
@@ -67,7 +91,7 @@ class DailyReportScreen extends ConsumerWidget {
                 height: 18,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white70,
+                  color: AppTheme.industrialBlue,
                 ),
               ),
             ),
@@ -75,27 +99,18 @@ class DailyReportScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100), // extra bottom padding for tab bar
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ═══ Section Title ═══════════════════════════════════════
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Activity Setup',
-                    style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
-                  ),
-                  Text(
-                    'Required *',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
+              // ═══ Section: Activity Setup ════════════════════════════════
+              _FormSectionHeader(
+                title: 'Activity Setup',
+                subtitle: 'Required *',
+                icon: Icons.settings_rounded,
+                iconColor: AppTheme.industrialBlue,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // ═══ 1. Sales Order ═══════════════════════════════════════
               _SalesOrderDropdown(
@@ -125,19 +140,43 @@ class DailyReportScreen extends ConsumerWidget {
 
               // ═══ 3b. Show All Activities Toggle ══════════════════════
               if (state.selectedDepartment != null)
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  title: const Text('Show Other Activities'),
-                  subtitle: state.showAllActivities
-                      ? const Text(
-                          'Showing all activities across departments',
-                          style: TextStyle(fontSize: 12, color: Colors.white70),
-                        )
-                      : null,
-                  value: state.showAllActivities,
-                  onChanged: (v) => notifier.toggleShowAllActivities(v ?? false),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardWhite,
+                    borderRadius: BorderRadius.circular(12),
+                    border: const Border.fromBorderSide(
+                      BorderSide(color: AppTheme.borderColor, width: 1),
+                    ),
+                  ),
+                  child: CheckboxListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    dense: true,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    activeColor: AppTheme.industrialBlue,
+                    title: Text(
+                      'Show Other Activities',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    subtitle: state.showAllActivities
+                        ? Text(
+                            'Showing all activities across departments',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                            ),
+                          )
+                        : null,
+                    value: state.showAllActivities,
+                    onChanged: (v) => notifier.toggleShowAllActivities(v ?? false),
+                  ),
                 ),
 
               // ═══ 3a. Other Activity Warning ══════════════════════════
@@ -150,19 +189,15 @@ class DailyReportScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 24),
 
-              // ═══ Section Title ═══════════════════════════════════════
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Time Entry',
-                    style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
-                  ),
-                ],
+              // ═══ Section: Time Entry ══════════════════════════════════
+              _FormSectionHeader(
+                title: 'Time Entry',
+                icon: Icons.schedule_rounded,
+                iconColor: AppTheme.tealAccent,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // ═══ 4. Time Entry ═══════════════════════════════════════
+              // ═══ 4. Time Entry ════════════════════════════════════════
               _TimeEntrySection(
                 startTime: state.startTime,
                 endTime: state.endTime,
@@ -172,82 +207,89 @@ class DailyReportScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // ═══ Section Title ═══════════════════════════════════════
-              Text(
-                'Team',
-                style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
+              // ═══ Section: Team ════════════════════════════════════════
+              _FormSectionHeader(
+                title: 'Team',
+                icon: Icons.group_rounded,
+                iconColor: AppTheme.emeraldGreen,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // ═══ 5. Coworker ═════════════════════════════════════════
+              // ═══ 5. Coworker ══════════════════════════════════════════
               const CoworkerSection(),
               const SizedBox(height: 24),
 
-              // ═══ Remarks ═════════════════════════════════════════════
-              Text(
-                'Remarks',
-                style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
+              // ═══ Section: Remarks ═════════════════════════════════════
+              _FormSectionHeader(
+                title: 'Remarks',
+                icon: Icons.comment_outlined,
+                iconColor: AppTheme.textSecondary,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _RemarksSection(
                 remarks: state.remarks,
                 onChanged: notifier.setRemarks,
               ),
               const SizedBox(height: 24),
 
-              // ═══ Section Title ═══════════════════════════════════════
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Your progress',
-                    style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
-                  ),
-                ],
+              // ═══ Section: Your Progress ═══════════════════════════════
+              _FormSectionHeader(
+                title: 'Your Progress',
+                icon: Icons.trending_up_rounded,
+                iconColor: AppTheme.industrialBlue,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // ═══ 6. Productivity Summary ═════════════════════════════
+              // ═══ 6. Productivity Summary ══════════════════════════════
               const ProductivitySummaryCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // ═══ 6a. Duplicate Error Banner ══════════════════════════
+              // ═══ Error banners ════════════════════════════════════════
               if (state.duplicateError != null)
                 _ErrorBanner(
                   message: state.duplicateError!,
                   onDismiss: notifier.clearDuplicateError,
                 ),
-
-              // ═══ 6b. Submit Error Banner ═════════════════════════════
               if (state.submitErrorMessage != null)
                 _ErrorBanner(
                   message: state.submitErrorMessage!,
                   onDismiss: notifier.clearSubmitError,
                 ),
-
               const SizedBox(height: 16),
 
-              // ═══ 7. Submit Button ════════════════════════════════════
+              // ═══ 7. Submit Button ═════════════════════════════════════
               SizedBox(
-                height: 56,
+                height: 54,
                 child: ElevatedButton.icon(
                   onPressed: state.canSubmit
                       ? () async => await notifier.submit()
                       : null,
                   icon: state.isSubmitting
                       ? const SizedBox(
-                          width: 20,
-                          height: 20,
+                          width: 18,
+                          height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.send_rounded, size: 20),
-                  label: Text(state.isSubmitting ? 'Submitting...' : 'Submit Report'),
+                      : const Icon(Icons.send_rounded, size: 18),
+                  label: Text(
+                    state.isSubmitting ? 'Submitting...' : 'Submit Report',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    disabledBackgroundColor: theme.colorScheme.primary.withOpacity(0.25),
+                    backgroundColor: AppTheme.industrialBlue,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppTheme.industrialBlue.withOpacity(0.35),
                     disabledForegroundColor: Colors.white60,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -277,21 +319,22 @@ class DailyReportScreen extends ConsumerWidget {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 const SizedBox(width: 10),
                 Expanded(child: Text(next.submitSuccessMessage!)),
               ],
             ),
-            backgroundColor: const Color(0xFF5C7862), // match primary theme color
+            backgroundColor: AppTheme.emeraldGreen,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
             ),
+            margin: const EdgeInsets.all(16),
             duration: const Duration(seconds: 3),
           ),
         );
         ref.read(dailyReportProvider.notifier).clearSubmitSuccess();
-        
+
         // Return to Dashboard after a short delay
         Future.delayed(const Duration(seconds: 1), () {
           if (context.mounted) {
@@ -300,6 +343,61 @@ class DailyReportScreen extends ConsumerWidget {
         });
       }
     });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  Form Section Header
+// ══════════════════════════════════════════════════════════════════════════
+class _FormSectionHeader extends StatelessWidget {
+  const _FormSectionHeader({
+    required this.title,
+    this.subtitle,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: iconColor),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.2,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const Spacer(),
+          Text(
+            subtitle!,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textHint,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -320,27 +418,34 @@ class _SalesOrderDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final dropdownColor = isDark ? const Color(0xFF262628) : Colors.white;
-    final iconColor = isDark ? Colors.white : Colors.black87;
-
     return DropdownButtonFormField<SalesOrder>(
       key: ValueKey('${selectedSO?.id}_${salesOrders.length}'),
       initialValue: selectedSO,
-      style: TextStyle(color: textColor, fontSize: 16),
-      icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
+      style: GoogleFonts.inter(
+        color: AppTheme.textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
       decoration: const InputDecoration(
         labelText: 'Sales Order',
         prefixIcon: Icon(Icons.receipt_long_outlined),
       ),
-      hint: const Text('Select sales order'),
-      dropdownColor: dropdownColor,
+      hint: Text(
+        'Select sales order',
+        style: GoogleFonts.inter(color: AppTheme.textHint, fontSize: 14),
+      ),
+      dropdownColor: AppTheme.cardWhite,
       items: salesOrders.map((so) {
         return DropdownMenuItem(
           value: so,
-          child: Text(so.label, style: TextStyle(color: textColor)),
+          child: Text(
+            so.label,
+            style: GoogleFonts.inter(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+            ),
+          ),
         );
       }).toList(),
       onChanged: onChanged,
@@ -363,28 +468,32 @@ class _DepartmentDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final dropdownColor = isDark ? const Color(0xFF262628) : Colors.white;
-    final iconColor = isDark ? Colors.white : Colors.black87;
-
     return DropdownButtonFormField<Department>(
       key: ValueKey('${selectedDepartment?.id}_${departments.length}'),
       initialValue: selectedDepartment,
-      style: TextStyle(color: textColor, fontSize: 16),
-      icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
+      style: GoogleFonts.inter(
+        color: AppTheme.textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
       decoration: InputDecoration(
         labelText: 'Department',
         prefixIcon: const Icon(Icons.business_outlined),
         hintText: enabled ? 'Select department' : 'Select a sales order first',
       ),
-      hint: Text(enabled ? 'Select department' : 'Select a sales order first'),
-      dropdownColor: dropdownColor,
+      hint: Text(
+        enabled ? 'Select department' : 'Select a sales order first',
+        style: GoogleFonts.inter(color: AppTheme.textHint, fontSize: 14),
+      ),
+      dropdownColor: AppTheme.cardWhite,
       items: departments.map((dept) {
         return DropdownMenuItem(
           value: dept,
-          child: Text(dept.name, style: TextStyle(color: textColor)),
+          child: Text(
+            dept.name,
+            style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 14),
+          ),
         );
       }).toList(),
       onChanged: enabled ? onChanged : null,
@@ -407,23 +516,21 @@ class _ActivityDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final dropdownColor = isDark ? const Color(0xFF262628) : Colors.white;
-    final iconColor = isDark ? Colors.white : Colors.black87;
-
     return DropdownButtonFormField<Activity>(
       key: ValueKey('${selectedActivity?.id}_${activities.length}'),
       initialValue: selectedActivity,
-      style: TextStyle(color: textColor, fontSize: 16),
-      icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
+      style: GoogleFonts.inter(
+        color: AppTheme.textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppTheme.textSecondary),
       decoration: InputDecoration(
         labelText: 'Activity',
         prefixIcon: const Icon(Icons.task_alt_outlined),
         hintText: enabled ? 'Select activity' : 'Select a department first',
       ),
-      dropdownColor: dropdownColor,
+      dropdownColor: AppTheme.cardWhite,
       items: activities.map((act) {
         return DropdownMenuItem(
           value: act,
@@ -431,7 +538,7 @@ class _ActivityDropdown extends StatelessWidget {
             act.activityCode.isEmpty
                 ? act.activityName
                 : '${act.activityCode} — ${act.activityName}',
-            style: TextStyle(color: textColor),
+            style: GoogleFonts.inter(color: AppTheme.textPrimary, fontSize: 14),
             overflow: TextOverflow.ellipsis,
           ),
         );
@@ -482,30 +589,26 @@ class _OtherActivityWarningState extends State<_OtherActivityWarning> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const warningColor = Color(0xFFFF735D); // matching coral
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: warningColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: warningColor.withOpacity(0.3)),
+        color: AppTheme.coralOrange.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.coralOrange.withOpacity(0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: warningColor, size: 20),
+              const Icon(Icons.warning_amber_rounded, color: AppTheme.coralOrange, size: 18),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Outside assigned role',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: warningColor,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                'Outside assigned role',
+                style: GoogleFonts.inter(
+                  color: AppTheme.coralOrange,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -513,13 +616,26 @@ class _OtherActivityWarningState extends State<_OtherActivityWarning> {
           const SizedBox(height: 12),
           TextField(
             controller: _controller,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: AppTheme.textPrimary,
+            ),
             decoration: InputDecoration(
               labelText: 'Reason (required)',
               hintText: 'Why are you performing this?',
-              fillColor: theme.scaffoldBackgroundColor, // dark bg inside card
+              fillColor: AppTheme.cardWhite,
+              filled: true,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.coralOrange, width: 1.5),
               ),
             ),
             maxLines: 2,
@@ -555,8 +671,11 @@ class _TimeEntrySection extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF262628),
-              borderRadius: BorderRadius.circular(16),
+              color: AppTheme.cardWhite,
+              borderRadius: BorderRadius.circular(12),
+              border: const Border.fromBorderSide(
+                BorderSide(color: AppTheme.borderColor, width: 1.5),
+              ),
             ),
             child: TimePickerRow(
               label: 'Start',
@@ -570,9 +689,14 @@ class _TimeEntrySection extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF262628),
-              borderRadius: BorderRadius.circular(16),
-              border: endTimeBeforeStart ? Border.all(color: Colors.redAccent) : null,
+              color: AppTheme.cardWhite,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.fromBorderSide(
+                BorderSide(
+                  color: endTimeBeforeStart ? AppTheme.errorRed : AppTheme.borderColor,
+                  width: endTimeBeforeStart ? 2 : 1.5,
+                ),
+              ),
             ),
             child: TimePickerRow(
               label: 'End',
@@ -587,10 +711,6 @@ class _TimeEntrySection extends StatelessWidget {
   }
 }
 
-// ── Error Banner (duplicate / submit errors) ─────────────────────────────
-
-/// Red error banner displayed when a duplicate report is detected or a
-/// generic submission error occurs. Includes a dismiss icon button.
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({
     required this.message,
@@ -602,28 +722,26 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const errorRed = Color(0xFFC62828);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFEBEE), // light red
+        color: AppTheme.errorRed.withOpacity(0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: errorRed.withOpacity(0.4)),
+        border: Border.all(color: AppTheme.errorRed.withOpacity(0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: errorRed, size: 20),
+          const Icon(Icons.error_outline_rounded, color: AppTheme.errorRed, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: errorRed,
+              style: GoogleFonts.inter(
+                color: AppTheme.errorRed,
                 fontWeight: FontWeight.w500,
+                fontSize: 13,
                 height: 1.4,
               ),
             ),
@@ -631,7 +749,7 @@ class _ErrorBanner extends StatelessWidget {
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onDismiss,
-            child: const Icon(Icons.close, color: errorRed, size: 18),
+            child: const Icon(Icons.close_rounded, color: AppTheme.errorRed, size: 18),
           ),
         ],
       ),
@@ -682,12 +800,16 @@ class _RemarksSectionState extends State<_RemarksSection> {
   Widget build(BuildContext context) {
     return TextField(
       controller: _controller,
+      style: GoogleFonts.inter(
+        fontSize: 14,
+        color: AppTheme.textPrimary,
+      ),
       decoration: const InputDecoration(
         labelText: 'Remarks (optional)',
         hintText: 'Enter any additional comments or remarks...',
         prefixIcon: Icon(Icons.comment_outlined),
       ),
-      maxLines: 2,
+      maxLines: 3,
       onChanged: widget.onChanged,
     );
   }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../domain/notifications_provider.dart';
+import '../../../core/theme/app_theme.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
@@ -10,11 +12,11 @@ class NotificationsScreen extends ConsumerWidget {
   Color _getNotificationColor(String type) {
     switch (type.toUpperCase()) {
       case 'APPROVED':
-        return const Color(0xFF5C7862); // Sage green
+        return AppTheme.emeraldGreen;
       case 'REWORK':
-        return const Color(0xFFFF735D); // Coral
+        return AppTheme.coralOrange;
       default:
-        return Colors.blueGrey;
+        return AppTheme.tealAccent;
     }
   }
 
@@ -53,13 +55,24 @@ class NotificationsScreen extends ConsumerWidget {
     final unreadCount = state.notifications.where((n) => !n.isRead).length;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: AppTheme.scaffoldBg,
       appBar: AppBar(
-        title: const Text('Notification Center'),
+        backgroundColor: AppTheme.cardWhite,
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        scrolledUnderElevation: 1,
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          'Notifications',
+          style: GoogleFonts.inter(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          color: AppTheme.textPrimary,
           onPressed: () => context.pop(),
         ),
         actions: [
