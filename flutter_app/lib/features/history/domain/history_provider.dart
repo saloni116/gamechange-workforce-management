@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../../app/config.dart';
 import '../../daily_report/data/mock_data.dart';
 import '../../daily_report/domain/daily_report_notifier.dart';
 
@@ -10,7 +11,7 @@ import '../../daily_report/domain/daily_report_notifier.dart';
 // TASK 4 — History API integration
 // ──────────────────────────────────────────────────────────────────────────
 
-const String _baseUrl = 'http://localhost:3000/api/v1';
+const String _baseUrl = AppConfig.baseUrl;
 
 /// Reads the JWT token from Hive authBox for Bearer auth.
 String? _getToken() {
@@ -106,7 +107,10 @@ Future<List<SubmittedReport>> _fetchHistory() async {
         if (activityDateRaw != null) {
           final parsed = DateTime.tryParse(activityDateRaw);
           if (parsed != null) {
-            submittedDate = DateTime(parsed.year, parsed.month, parsed.day);
+            // Convert to UTC, then add 5:30 for IST
+            final utcDate = parsed.isUtc ? parsed : parsed.toUtc();
+            final istDate = utcDate.add(const Duration(hours: 5, minutes: 30));
+            submittedDate = DateTime(istDate.year, istDate.month, istDate.day);
           } else {
             submittedDate = DateTime.now();
           }
@@ -118,6 +122,8 @@ Future<List<SubmittedReport>> _fetchHistory() async {
         final remarks = item['remarks']?.toString();
         final isOtherActivity = item['isOtherActivity'] as bool? ?? false;
         final otherReason = item['otherActivityReason']?.toString();
+        final managerRemarks = item['managerRemarks']?.toString();
+        final isRework = item['isRework'] as bool? ?? false;
 
         // ── Productivity — compute from slot duration + activity stdMins ──
         final stdMins =
@@ -132,6 +138,9 @@ Future<List<SubmittedReport>> _fetchHistory() async {
             ? '${workerObj['firstName'] ?? ''} ${workerObj['lastName'] ?? ''}'
                 .trim()
             : 'Worker';
+        final workerEmployeeId = workerObj != null
+            ? (workerObj['employeeId']?.toString() ?? '')
+            : '';
 
         mapped.add(SubmittedReport(
           reportId: id,
@@ -147,10 +156,14 @@ Future<List<SubmittedReport>> _fetchHistory() async {
           productivityPercent: double.parse(prodPct.toStringAsFixed(1)),
           workerName: workerName,
           workerRole: '',
+          workerEmployeeId: workerEmployeeId,
           submittedDate: submittedDate,
           status: status,
           otherActivityReason:
               isOtherActivity ? (otherReason ?? remarks) : null,
+          remarks: remarks,
+          managerRemarks: managerRemarks,
+          isRework: isRework,
         ));
       } catch (itemErr) {
         debugPrint('⚠️ History: skipping malformed item: $itemErr');

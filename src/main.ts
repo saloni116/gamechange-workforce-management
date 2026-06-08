@@ -31,11 +31,12 @@ async function bootstrap() {
 
   const port = Number(configService.get('APP_PORT')) || 3000;
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   console.log(
     `🚀 ${configService.get('APP_NAME')} running on port ${port}`,
   );
+  
 }
 
 void bootstrap();

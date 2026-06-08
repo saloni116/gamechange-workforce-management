@@ -183,6 +183,18 @@ class DailyReportScreen extends ConsumerWidget {
               const CoworkerSection(),
               const SizedBox(height: 24),
 
+              // ═══ Remarks ═════════════════════════════════════════════
+              Text(
+                'Remarks',
+                style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
+              ),
+              const SizedBox(height: 16),
+              _RemarksSection(
+                remarks: state.remarks,
+                onChanged: notifier.setRemarks,
+              ),
+              const SizedBox(height: 24),
+
               // ═══ Section Title ═══════════════════════════════════════
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -308,20 +320,27 @@ class _SalesOrderDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final dropdownColor = isDark ? const Color(0xFF262628) : Colors.white;
+    final iconColor = isDark ? Colors.white : Colors.black87;
+
     return DropdownButtonFormField<SalesOrder>(
       key: ValueKey('${selectedSO?.id}_${salesOrders.length}'),
       initialValue: selectedSO,
-      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+      style: TextStyle(color: textColor, fontSize: 16),
+      icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
       decoration: const InputDecoration(
         labelText: 'Sales Order',
         prefixIcon: Icon(Icons.receipt_long_outlined),
       ),
       hint: const Text('Select sales order'),
-      dropdownColor: const Color(0xFF262628),
+      dropdownColor: dropdownColor,
       items: salesOrders.map((so) {
         return DropdownMenuItem(
           value: so,
-          child: Text(so.label, style: const TextStyle(color: Colors.white)),
+          child: Text(so.label, style: TextStyle(color: textColor)),
         );
       }).toList(),
       onChanged: onChanged,
@@ -344,21 +363,28 @@ class _DepartmentDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final dropdownColor = isDark ? const Color(0xFF262628) : Colors.white;
+    final iconColor = isDark ? Colors.white : Colors.black87;
+
     return DropdownButtonFormField<Department>(
       key: ValueKey('${selectedDepartment?.id}_${departments.length}'),
       initialValue: selectedDepartment,
-      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+      style: TextStyle(color: textColor, fontSize: 16),
+      icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
       decoration: InputDecoration(
         labelText: 'Department',
         prefixIcon: const Icon(Icons.business_outlined),
         hintText: enabled ? 'Select department' : 'Select a sales order first',
       ),
       hint: Text(enabled ? 'Select department' : 'Select a sales order first'),
-      dropdownColor: const Color(0xFF262628),
+      dropdownColor: dropdownColor,
       items: departments.map((dept) {
         return DropdownMenuItem(
           value: dept,
-          child: Text(dept.name, style: const TextStyle(color: Colors.white)),
+          child: Text(dept.name, style: TextStyle(color: textColor)),
         );
       }).toList(),
       onChanged: enabled ? onChanged : null,
@@ -381,22 +407,31 @@ class _ActivityDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final dropdownColor = isDark ? const Color(0xFF262628) : Colors.white;
+    final iconColor = isDark ? Colors.white : Colors.black87;
+
     return DropdownButtonFormField<Activity>(
       key: ValueKey('${selectedActivity?.id}_${activities.length}'),
       initialValue: selectedActivity,
-      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+      style: TextStyle(color: textColor, fontSize: 16),
+      icon: Icon(Icons.keyboard_arrow_down, color: iconColor),
       decoration: InputDecoration(
         labelText: 'Activity',
         prefixIcon: const Icon(Icons.task_alt_outlined),
         hintText: enabled ? 'Select activity' : 'Select a department first',
       ),
-      dropdownColor: const Color(0xFF262628),
+      dropdownColor: dropdownColor,
       items: activities.map((act) {
         return DropdownMenuItem(
           value: act,
           child: Text(
-            '${act.activityCode} — ${act.activityName}',
-            style: const TextStyle(color: Colors.white),
+            act.activityCode.isEmpty
+                ? act.activityName
+                : '${act.activityCode} — ${act.activityName}',
+            style: TextStyle(color: textColor),
             overflow: TextOverflow.ellipsis,
           ),
         );
@@ -600,6 +635,60 @@ class _ErrorBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RemarksSection extends StatefulWidget {
+  const _RemarksSection({
+    required this.remarks,
+    required this.onChanged,
+  });
+
+  final String remarks;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_RemarksSection> createState() => _RemarksSectionState();
+}
+
+class _RemarksSectionState extends State<_RemarksSection> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.remarks);
+  }
+
+  @override
+  void didUpdateWidget(covariant _RemarksSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.remarks != _controller.text) {
+      _controller.text = widget.remarks;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      decoration: const InputDecoration(
+        labelText: 'Remarks (optional)',
+        hintText: 'Enter any additional comments or remarks...',
+        prefixIcon: Icon(Icons.comment_outlined),
+      ),
+      maxLines: 2,
+      onChanged: widget.onChanged,
     );
   }
 }

@@ -11,6 +11,7 @@ class AuthState {
     this.firstName,
     this.lastName,
     this.role,
+    this.loginTime,
   });
 
   /// Whether an auth request (login/logout) is in progress.
@@ -37,6 +38,9 @@ class AuthState {
   /// Role returned by the server (e.g. "Admin", "Worker").
   final String? role;
 
+  /// Timestamp of when the user logged in.
+  final DateTime? loginTime;
+
   // ── Convenience getters ─────────────────────────────────────────────────
 
   /// Full display name assembled from first + last name, or null if either missing.
@@ -62,6 +66,7 @@ class AuthState {
     String? firstName,
     String? lastName,
     String? role,
+    DateTime? loginTime,
     bool clearError = false,
     bool clearToken = false,
     bool clearUserData = false,
@@ -75,6 +80,7 @@ class AuthState {
       firstName: clearUserData ? null : (firstName ?? this.firstName),
       lastName: clearUserData ? null : (lastName ?? this.lastName),
       role: clearUserData ? null : (role ?? this.role),
+      loginTime: clearUserData ? null : (loginTime ?? this.loginTime),
     );
   }
 
@@ -92,7 +98,8 @@ class AuthState {
           employeeId == other.employeeId &&
           firstName == other.firstName &&
           lastName == other.lastName &&
-          role == other.role;
+          role == other.role &&
+          loginTime == other.loginTime;
 
   @override
   int get hashCode => Object.hash(
@@ -104,11 +111,12 @@ class AuthState {
         firstName,
         lastName,
         role,
+        loginTime,
       );
 
   @override
   String toString() =>
       'AuthState(isLoading: $isLoading, isAuthenticated: $isAuthenticated, '
       'token: ${token != null ? "***" : "null"}, errorMessage: $errorMessage, '
-      'employeeId: $employeeId, firstName: $firstName, lastName: $lastName, role: $role)';
+      'employeeId: $employeeId, firstName: $firstName, lastName: $lastName, role: $role, loginTime: $loginTime)';
 }

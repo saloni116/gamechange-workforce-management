@@ -11,6 +11,8 @@ import '../features/history/presentation/history_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../shared/widgets/app_scaffold.dart';
 
+import '../features/notifications/presentation/notifications_screen.dart';
+
 /// Application route paths.
 abstract class AppRoutes {
   static const String login = '/login';
@@ -19,6 +21,7 @@ abstract class AppRoutes {
   static const String history = '/history';
   static const String profile = '/profile';
   static const String admin = '/admin';
+  static const String notifications = '/notifications';
 }
 
 /// GoRouter configuration provider.
@@ -27,7 +30,7 @@ abstract class AppRoutes {
 /// `authProvider` state changes, ensuring secure redirection.
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
-    initialLocation: AppRoutes.dashboard,
+    initialLocation: AppRoutes.login,
     redirect: (context, state) {
       final authState = ref.read(authProvider);
       final isAuth = authState.isAuthenticated;
@@ -100,6 +103,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.profile,
             pageBuilder: (context, state) => const NoTransitionPage(
               child: ProfileScreen(),
+            ),
+          ),
+          GoRoute(
+            path: AppRoutes.notifications,
+            pageBuilder: (context, state) => const MaterialPage(
+              child: NotificationsScreen(),
             ),
           ),
         ],

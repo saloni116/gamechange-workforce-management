@@ -17,6 +17,7 @@ export class UsersService {
 
   async createUser(
     createUserDto: CreateUserDto,
+    performedByUserId?: string,
   ) {
     const existingUser =
       await this.prisma.user.findFirst({
@@ -31,6 +32,7 @@ export class UsersService {
                 createUserDto.mobile,
             },
           ],
+          isDeleted: false,
         },
       });
 
@@ -80,6 +82,26 @@ export class UsersService {
           role: true,
         },
       });
+
+    // Audit log for user creation
+    if (performedByUserId) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: performedByUserId,
+          module: 'Users',
+          action: 'CREATE',
+          entityId: user.id,
+          newValue: JSON.stringify({
+            employeeId: user.employeeId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            mobile: user.mobile,
+            email: user.email,
+            role: user.role.name,
+          }),
+        },
+      });
+    }
 
     return {
       message:
@@ -231,12 +253,16 @@ export class UsersService {
     async updateUser(
     id: string,
     updateUserDto: UpdateUserDto,
+    performedByUserId?: string,
   ) {
     const existingUser =
       await this.prisma.user.findFirst({
         where: {
           id,
           isDeleted: false,
+        },
+        include: {
+          role: true,
         },
       });
 
@@ -260,6 +286,34 @@ export class UsersService {
           role: true,
         },
       });
+
+    // Audit log for user update
+    if (performedByUserId) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: performedByUserId,
+          module: 'Users',
+          action: 'UPDATE',
+          entityId: id,
+          oldValue: JSON.stringify({
+            firstName: existingUser.firstName,
+            lastName: existingUser.lastName,
+            mobile: existingUser.mobile,
+            email: existingUser.email,
+            role: existingUser.role.name,
+            isActive: existingUser.isActive,
+          }),
+          newValue: JSON.stringify({
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            mobile: updatedUser.mobile,
+            email: updatedUser.email,
+            role: updatedUser.role.name,
+            isActive: updatedUser.isActive,
+          }),
+        },
+      });
+    }
 
     return {
       message:
@@ -292,12 +346,18 @@ export class UsersService {
     };
   }
 
-    async deleteUser(id: string) {
+    async deleteUser(
+    id: string,
+    performedByUserId?: string,
+  ) {
     const existingUser =
       await this.prisma.user.findFirst({
         where: {
           id,
           isDeleted: false,
+        },
+        include: {
+          role: true,
         },
       });
 
@@ -314,8 +374,29 @@ export class UsersService {
 
       data: {
         isDeleted: true,
+        deletedAt: new Date(),
       },
     });
+
+    // Audit log for user deletion
+    if (performedByUserId) {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: performedByUserId,
+          module: 'Users',
+          action: 'DELETE',
+          entityId: id,
+          oldValue: JSON.stringify({
+            employeeId: existingUser.employeeId,
+            firstName: existingUser.firstName,
+            lastName: existingUser.lastName,
+            mobile: existingUser.mobile,
+            email: existingUser.email,
+            role: existingUser.role.name,
+          }),
+        },
+      });
+    }
 
     return {
       message:

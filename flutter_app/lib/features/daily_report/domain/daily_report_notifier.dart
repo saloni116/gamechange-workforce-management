@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../../app/config.dart';
 import '../data/mock_data.dart';
 import 'daily_report_state.dart';
 import '../../auth/domain/auth_notifier.dart';
@@ -16,13 +17,13 @@ import '../../auth/domain/auth_notifier.dart';
 /// - State is replaced immutably via [DailyReportState.copyWith].
 /// - Calculations / derived values are state getters, NOT notifier methods.
 class DailyReportNotifier extends StateNotifier<DailyReportState> {
-  DailyReportNotifier() : super(const DailyReportState()) {
+  final Ref ref;
+  DailyReportNotifier(this.ref) : super(const DailyReportState()) {
     loadDropdowns();
   }
 
   // ── Backend base URL ─────────────────────────────────────────────────────
-  static const String _baseUrl =
-      'http://localhost:3000/api/v1';
+  static const String _baseUrl = AppConfig.baseUrl;
 
   /// Dio instance for operations API calls.
   final Dio _dio = Dio(BaseOptions(
@@ -160,6 +161,16 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
                     actIds.add(a['id'].toString());
                   }
                 }
+              } else if (s['departments'] is List) {
+                for (var d in s['departments']) {
+                  if (d is Map && d['activities'] is List) {
+                    for (var a in d['activities']) {
+                      if (a is Map && a['id'] != null) {
+                        actIds.add(a['id'].toString());
+                      }
+                    }
+                  }
+                }
               }
 
               return SalesOrder(
@@ -176,8 +187,12 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       }
     } on DioException catch (e) {
       debugPrint(
-        '⚠️ Dropdown API unreachable (${e.type.name}).',
+        '⚠️ Dropdown API unreachable (${e.type.name}): ${e.response?.statusCode} - ${e.response?.data}',
       );
+      if (e.response?.statusCode == 401) {
+        debugPrint('⚠️ Unauthorized token detected on dropdown load. Logging out user...');
+        ref.read(authProvider.notifier).logout();
+      }
     } catch (e) {
       debugPrint('⚠️ Unexpected error loading dropdowns: $e');
     } finally {
@@ -218,6 +233,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       clearSelectedActivity: true,
       isOtherActivity: false,
       otherActivityReason: '',
+      remarks: '',
     );
   }
 
@@ -403,6 +419,14 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   }
 
   // ────────────────────────────────────────────────────────────────────────
+  // Remarks
+  // ────────────────────────────────────────────────────────────────────────
+
+  void setRemarks(String val) {
+    state = state.copyWith(remarks: val);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
   // TASK 3 — Submit Report (live API + local mock fallback)
   // ────────────────────────────────────────────────────────────────────────
 
@@ -515,7 +539,9 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
         'departmentId': state.selectedDepartment!.id,
         'activityId': state.selectedActivity!.id,
         'durationMinutes': state.durationMinutes,
-        'remarks': state.isOtherActivity ? state.otherActivityReason : '',
+        'remarks': state.remarks.isNotEmpty
+            ? state.remarks
+            : (state.isOtherActivity ? state.otherActivityReason : ''),
         'coworkerEmployeeIds': state.hasCoworker &&
                 state.verifiedCoworker != null
             ? [state.verifiedCoworker!.employeeId]
@@ -578,6 +604,10 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       // ──────────────────────────────────────────────────────────────────
 
       if (e.response != null) {
+        if (e.response?.statusCode == 401) {
+          debugPrint('⚠️ Unauthorized token detected on submit. Logging out user...');
+          ref.read(authProvider.notifier).logout();
+        }
         // Server responded with an error — show it, do NOT fall back to mock
         final serverMsg = _extractServerError(e.response!.data);
         debugPrint(
@@ -626,12 +656,14 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
           double.parse(state.productivityPercent.toStringAsFixed(1)),
       workerName: 'Main Operator',
       workerRole: 'Production Worker',
+      workerEmployeeId: Hive.box('authBox').get('employeeId') as String? ?? 'EMP-1042',
       submittedDate: todayDate,
       status: 'Pending',
       coworkerId: state.verifiedCoworker?.employeeId,
       coworkerName: state.verifiedCoworker?.name,
       otherActivityReason:
           state.isOtherActivity ? state.otherActivityReason : null,
+      remarks: state.remarks.isNotEmpty ? state.remarks : null,
     );
 
     // ── Insert or Update mock submitted reports ────────────────────────
@@ -742,6 +774,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
       isOtherActivity: isOther,
       showAllActivities: showAll,
       otherActivityReason: oldReport.otherActivityReason ?? '',
+      remarks: oldReport.remarks ?? '',
       editingReportId: oldReport.reportId,
     );
   }
@@ -781,6 +814,6 @@ final dailyReportProvider =
     StateNotifierProvider<DailyReportNotifier, DailyReportState>(
   (ref) {
     ref.watch(authProvider);
-    return DailyReportNotifier();
+    return DailyReportNotifier(ref);
   },
 );

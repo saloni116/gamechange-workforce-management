@@ -7,6 +7,7 @@ import '../../daily_report/domain/daily_report_notifier.dart';
 import '../../daily_report/domain/daily_report_state.dart';
 import '../domain/history_provider.dart';
 import '../../../app/router.dart';
+import '../../auth/domain/auth_notifier.dart';
 
 /// Screen for viewing previously submitted activity reports.
 ///
@@ -180,8 +181,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ),
                 ),
                 data: (reports) {
-                  // Apply filtering logic
+                  // Apply user and status filtering logic
+                  final authState = ref.watch(authProvider);
                   final filteredReports = reports.where((report) {
+                    if (report.workerEmployeeId != authState.employeeId) return false;
                     if (_selectedFilter == 'All') return true;
                     return report.status == _selectedFilter;
                   }).toList();
@@ -365,6 +368,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                 ),
                                                 const SizedBox(height: 10),
                                               ],
+                                              // Remarks
+                                              if (report.remarks != null && report.remarks!.isNotEmpty) ...[
+                                                _buildDetailRow(
+                                                  context,
+                                                  'Remarks',
+                                                  report.remarks!,
+                                                  Icons.comment_outlined,
+                                                ),
+                                                const SizedBox(height: 10),
+                                              ],
+                                              // Manager Remarks
+                                              if (report.managerRemarks != null && report.managerRemarks!.isNotEmpty) ...[
+                                                _buildDetailRow(
+                                                  context,
+                                                  'Manager Remarks',
+                                                  report.managerRemarks!,
+                                                  Icons.rate_review_outlined,
+                                                ),
+                                                const SizedBox(height: 10),
+                                              ],
                                               // Warning banner for other activities
                                               if (report.otherActivityReason != null && report.otherActivityReason!.isNotEmpty) ...[
                                                 _buildWarningBlock(
@@ -498,16 +521,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildDetailRow(BuildContext context, String label, String value, IconData icon) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade500),
+        Padding(
+          padding: const EdgeInsets.only(top: 2.0),
+          child: Icon(icon, size: 16, color: Colors.grey.shade500),
+        ),
         const SizedBox(width: 8),
         Text(
           '$label: ',
           style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
         ),
-        Text(
-          value,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+          ),
         ),
       ],
     );

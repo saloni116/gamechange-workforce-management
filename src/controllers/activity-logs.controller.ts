@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -43,4 +45,17 @@ export class ActivityLogsController {
 async getActivityLogs() {
   return this.activityLogsService.getActivityLogs();
 }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/review')
+  async reviewActivityLog(
+    @Param('id') id: string,
+    @Body() body: { status: 'COMPLETED' | 'PENDING' | 'REWORK_ASSIGNED'; managerRemarks?: string },
+  ) {
+    return this.activityLogsService.reviewActivityLog(
+      id,
+      body.status,
+      body.managerRemarks,
+    );
+  }
 }

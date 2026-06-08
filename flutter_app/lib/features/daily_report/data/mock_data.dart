@@ -276,11 +276,15 @@ class SubmittedReport {
   final double productivityPercent;
   final String workerName;
   final String workerRole;
+  final String workerEmployeeId;
   final DateTime submittedDate; // calendar date only (time zeroed)
   final String status; // 'Pending', 'Approved', 'Rework Assigned'
   final String? coworkerId;
   final String? coworkerName;
   final String? otherActivityReason;
+  final String? remarks;
+  final String? managerRemarks;
+  final bool isRework;
 
   const SubmittedReport({
     required this.reportId,
@@ -296,11 +300,15 @@ class SubmittedReport {
     required this.productivityPercent,
     required this.workerName,
     required this.workerRole,
+    required this.workerEmployeeId,
     required this.submittedDate,
     required this.status,
     this.coworkerId,
     this.coworkerName,
     this.otherActivityReason,
+    this.remarks,
+    this.managerRemarks,
+    this.isRework = false,
   });
 }
 
@@ -322,6 +330,7 @@ final List<SubmittedReport> mockSubmittedReports = [
     productivityPercent: 100.0,
     workerName: 'Amit Patel',
     workerRole: 'Senior Assembler',
+    workerEmployeeId: 'EMP-1001',
     submittedDate: DateTime.now().subtract(const Duration(days: 2)),
     status: 'Approved',
     coworkerId: null,
@@ -342,6 +351,7 @@ final List<SubmittedReport> mockSubmittedReports = [
     productivityPercent: 111.1,
     workerName: 'Rajesh Kumar',
     workerRole: 'MIG Welder',
+    workerEmployeeId: 'EMP-1042',
     submittedDate: DateTime.now().subtract(const Duration(days: 1)),
     status: 'Pending',
     coworkerId: 'EMP-2011',
@@ -362,6 +372,7 @@ final List<SubmittedReport> mockSubmittedReports = [
     productivityPercent: 83.3,
     workerName: 'Suresh Sen',
     workerRole: 'Quality Inspector',
+    workerEmployeeId: 'EMP-1003',
     submittedDate: DateTime.now().subtract(const Duration(hours: 4)),
     status: 'Rework Assigned',
     coworkerId: null,

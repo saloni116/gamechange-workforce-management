@@ -31,7 +31,7 @@ class WorkforceApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Workforce Productivity',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       routerConfig: ref.watch(routerProvider),
     );
   }

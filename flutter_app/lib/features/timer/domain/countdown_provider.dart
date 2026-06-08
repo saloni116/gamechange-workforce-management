@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../auth/domain/auth_provider.dart';
+import '../../auth/domain/auth_notifier.dart';
 
 class CountdownState {
   const CountdownState({

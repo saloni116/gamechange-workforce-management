@@ -7,6 +7,7 @@ import {
   UseGuards,
   Patch,
   Delete,
+  Req,
 } from '@nestjs/common';
 
 import { UsersService } from '../services/users.service';
@@ -32,10 +33,12 @@ export class UsersController {
 
   @Post()
   async createUser(
+    @Req() req: any,
     @Body() createUserDto: CreateUserDto,
   ) {
     return this.usersService.createUser(
       createUserDto,
+      req.user.userId,
     );
   }
 
@@ -64,6 +67,7 @@ export class UsersController {
 
   @Patch(':id')
   async updateUser(
+    @Req() req: any,
     @Param('id') id: string,
 
     @Body() updateUserDto: UpdateUserDto,
@@ -71,6 +75,7 @@ export class UsersController {
     return this.usersService.updateUser(
       id,
       updateUserDto,
+      req.user.userId,
     );
   }
 
@@ -80,10 +85,12 @@ export class UsersController {
 
   @Delete(':id')
   async deleteUser(
+    @Req() req: any,
     @Param('id') id: string,
   ) {
     return this.usersService.deleteUser(
       id,
+      req.user.userId,
     );
   }
-}
+}

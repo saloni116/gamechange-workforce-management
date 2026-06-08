@@ -193,6 +193,7 @@ export class DepartmentsService {
 
       data: {
         isDeleted: true,
+        deletedAt: new Date(),
       },
     });
 

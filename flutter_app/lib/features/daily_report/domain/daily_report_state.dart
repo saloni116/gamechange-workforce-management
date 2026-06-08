@@ -20,6 +20,7 @@ class DailyReportState {
   final bool isOtherActivity;
   final bool showAllActivities;
   final String otherActivityReason;
+  final String remarks;
   final String? duplicateError;
   final String? submitErrorMessage;
   final String? submitSuccessMessage;
@@ -45,6 +46,7 @@ class DailyReportState {
     this.isOtherActivity = false,
     this.showAllActivities = false,
     this.otherActivityReason = '',
+    this.remarks = '',
     this.duplicateError,
     this.submitErrorMessage,
     this.submitSuccessMessage,
@@ -143,6 +145,7 @@ class DailyReportState {
     bool? isOtherActivity,
     bool? showAllActivities,
     String? otherActivityReason,
+    String? remarks,
     String? duplicateError,
     bool clearDuplicateError = false,
     String? submitErrorMessage,
@@ -182,6 +185,7 @@ class DailyReportState {
           showAllActivities ?? this.showAllActivities,
       otherActivityReason:
           otherActivityReason ?? this.otherActivityReason,
+      remarks: remarks ?? this.remarks,
       duplicateError:
           clearDuplicateError
               ? null

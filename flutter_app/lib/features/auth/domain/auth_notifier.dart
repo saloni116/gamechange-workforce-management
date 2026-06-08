@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../../../app/config.dart';
 import 'auth_state.dart';
 
 /// Riverpod [StateNotifier] that manages authentication state.
@@ -24,10 +25,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static const String _keyFirstName = 'firstName';
   static const String _keyLastName = 'lastName';
   static const String _keyRole = 'role';
+  static const String _keyLoginTime = 'loginTime';
 
   // ── Backend base URL ────────────────────────────────────────────────────
-  static const String _baseUrl =
-      'http://localhost:3000/api/v1';
+  static const String _baseUrl = AppConfig.baseUrl;
 
   /// Dio instance for auth API calls.
   final Dio _dio = Dio(BaseOptions(
@@ -45,9 +46,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       if (token != null && token.isNotEmpty) {
         final employeeId = authBox.get(_keyEmployeeId) as String?;
+        
+        if (employeeId == 'EMP-123') {
+          debugPrint('🧹 Found mock session (EMP-123). Clearing and forcing login screen...');
+          logout();
+          return;
+        }
+
         final firstName = authBox.get(_keyFirstName) as String?;
         final lastName = authBox.get(_keyLastName) as String?;
         final role = authBox.get(_keyRole) as String?;
+        final loginTimeMs = authBox.get(_keyLoginTime) as int?;
+        final loginTime = loginTimeMs != null
+            ? DateTime.fromMillisecondsSinceEpoch(loginTimeMs)
+            : null;
 
         state = AuthState(
           isAuthenticated: true,
@@ -56,11 +68,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           firstName: firstName,
           lastName: lastName,
           role: role,
+          loginTime: loginTime,
         );
 
         debugPrint(
           '🔑 Auto-login restored from Hive — '
-          'employeeId: $employeeId, role: $role',
+          'employeeId: $employeeId, role: $role, loginTime: $loginTime',
         );
       }
     } catch (e) {
@@ -168,6 +181,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await authBox.delete(_keyFirstName);
     await authBox.delete(_keyLastName);
     await authBox.delete(_keyRole);
+    await authBox.delete(_keyLoginTime);
 
     state = const AuthState();
 
@@ -223,12 +237,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String lastName,
     required String role,
   }) async {
+    final loginTime = DateTime.now();
+
     final authBox = Hive.box('authBox');
     await authBox.put(_keyToken, token);
     await authBox.put(_keyEmployeeId, employeeId);
     await authBox.put(_keyFirstName, firstName);
     await authBox.put(_keyLastName, lastName);
     await authBox.put(_keyRole, role);
+    await authBox.put(_keyLoginTime, loginTime.millisecondsSinceEpoch);
 
     final savedToken = authBox.get(_keyToken) as String? ?? '';
     debugPrint('🔍 [DEBUG] Hive token (first 50): ${savedToken.length > 50 ? savedToken.substring(0, 50) : savedToken}');
@@ -243,6 +260,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       firstName: firstName,
       lastName: lastName,
       role: role,
+      loginTime: loginTime,
       clearError: true,
     );
 
