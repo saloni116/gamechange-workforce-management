@@ -44,18 +44,13 @@ export class UsersController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getUsers() {
     return this.usersService.getUsers();
   }
-    @UseGuards(JwtAuthGuard, RolesGuard)
 
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getUserById(
     @Param('id') id: string,
@@ -63,15 +58,11 @@ export class UsersController {
     return this.usersService.getUserById(id);
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async updateUser(
     @Req() req: any,
     @Param('id') id: string,
-
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateUser(
@@ -81,8 +72,7 @@ export class UsersController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Admin')
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/change-password')
   async changePassword(
     @Param('id') id: string,

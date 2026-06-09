@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { PrismaModule } from './database/prisma.module';
@@ -16,6 +16,7 @@ import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { ActivityLogsModule } from './modules/activity-logs/activity-logs.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { LoggerMiddleware } from './middleware/logger.middleware';
 
 @Module({
   imports: [
@@ -47,4 +48,8 @@ import { RolesModule } from './modules/roles/roles.module';
 
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}

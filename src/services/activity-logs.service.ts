@@ -199,4 +199,22 @@ export class ActivityLogsService {
 
   return logs;
 }
+
+  async updateActivityLog(id: string, updatedFields: any) {
+    const existing = await this.prisma.activityLog.findUnique({ where: { id } });
+    if (!existing) {
+      throw new BadRequestException('Activity log not found');
+    }
+
+    const updated = await this.prisma.activityLog.update({
+      where: { id },
+      data: {
+        managerRemarks: updatedFields.managerRemarks,
+        isRework: updatedFields.isRework,
+        reworkAssignedToId: updatedFields.reworkAssignedToId,
+      },
+    });
+
+    return { message: 'Activity log updated successfully', activityLog: updated };
+  }
 }

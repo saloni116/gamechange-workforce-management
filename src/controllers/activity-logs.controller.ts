@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Param,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -10,6 +12,7 @@ import {
 import { ActivityLogsService } from '../services/activity-logs.service';
 
 import { CreateActivityLogDto } from '../modules/activity-logs/dto/create-activity-log.dto';
+import { UpdateActivityLogDto } from '../modules/activity-logs/dto/update-activity-log.dto';
 
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 
@@ -43,4 +46,14 @@ export class ActivityLogsController {
 async getActivityLogs() {
   return this.activityLogsService.getActivityLogs();
 }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  async updateActivityLog(
+    @Req() req: any,
+    @Body() updateActivityLogDto: UpdateActivityLogDto,
+    @Param('id') id: string,
+  ) {
+    return this.activityLogsService.updateActivityLog(id, updateActivityLogDto);
+  }
 }

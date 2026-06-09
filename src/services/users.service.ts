@@ -258,7 +258,10 @@ export class UsersService {
     const existingUser =
       await this.prisma.user.findFirst({
         where: {
-          id,
+          OR: [
+            { id },
+            { employeeId: id },
+          ],
           isDeleted: false,
         },
         include: {
@@ -275,11 +278,12 @@ export class UsersService {
     const updatedUser =
       await this.prisma.user.update({
         where: {
-          id,
+          id: existingUser.id,
         },
 
         data: {
           ...updateUserDto,
+          ...(updateUserDto.isActive !== undefined ? { status: updateUserDto.isActive ? 'ACTIVE' : 'INACTIVE' } : {}),
         },
 
         include: {

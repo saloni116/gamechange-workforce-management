@@ -36,10 +36,7 @@ export class ActivitiesController {
     );
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getActivities() {
     return this.activitiesService.getActivities();

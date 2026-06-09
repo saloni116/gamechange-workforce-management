@@ -37,7 +37,7 @@ async function main() {
     console.log('Roles seeded successfully.');
 
     // 2. Seed Users
-    const passwordHash = await bcrypt.hash('password', 10);
+    const passwordHash = await bcrypt.hash('Admin@123', 10);
     const admin001Hash = await bcrypt.hash('SYS001', 10);
 
     const usersData = [
