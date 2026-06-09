@@ -40,7 +40,7 @@ async function main() {
     const passwordHash = await bcrypt.hash('Admin@123', 10);
     const admin001Hash = await bcrypt.hash('SYS001', 10);
 
-    const usersData = [
+    const baseUsersData = [
       { employeeId: 'ADMIN001', firstName: 'System', lastName: 'Admin', mobile: '9000000001', email: 'systemadmin@workforce.com', role: 'Admin', hash: admin001Hash },
       { employeeId: 'EMP-1042', firstName: 'Admin', lastName: 'User', mobile: '9876543210', email: 'admin@workforce.com', role: 'Admin', hash: passwordHash },
       { employeeId: 'EMP-2001', firstName: 'Anita', lastName: 'Sharma', mobile: '9876543211', email: 'anita@workforce.com', role: 'Skilled', hash: passwordHash },
@@ -54,6 +54,34 @@ async function main() {
       { employeeId: 'TRAINEE001', firstName: 'Priya', lastName: 'Sharma', mobile: '9876543221', email: 'priya@workforce.com', role: 'Trainee', hash: passwordHash },
       { employeeId: 'SKILLED001', firstName: 'Rajesh', lastName: 'Kumar', mobile: '9876543220', email: 'rajesh@workforce.com', role: 'Skilled', hash: passwordHash },
     ];
+
+    const extraUsersData = [
+      { employeeId: 'FTC016', firstName: 'SHASHANK', lastName: 'MAPANKAR', mobile: '9819645785', pass: 'SHA785', role: 'Skilled' },
+      { employeeId: 'FTC039', firstName: 'SANJAY', lastName: 'PARAB', mobile: '9820691714', pass: 'SAN714', role: 'Skilled' },
+      { employeeId: 'FTC038', firstName: 'DINESH', lastName: 'SHIGWAN', mobile: '8369614690', pass: 'DIN690', role: 'Skilled' },
+      { employeeId: 'FTC033', firstName: 'VISHVAJIT', lastName: 'LINGAYAT', mobile: '8369192042', pass: 'VIS042', role: 'Skilled' },
+      { employeeId: 'FTC002', firstName: 'SUHAS', lastName: 'BALIP', mobile: '9821825044', pass: 'SUH044', role: 'Skilled' },
+      { employeeId: 'FTC014', firstName: 'BHARAT', lastName: 'JADHAV', mobile: '7021600762', pass: 'BHA762', role: 'Skilled' },
+      { employeeId: 'FTC0012', firstName: 'SATISH', lastName: 'RANE', mobile: '9867180614', pass: 'SAT614', role: 'Skilled' },
+      { employeeId: 'FTC003', firstName: 'SHASHIKAN', lastName: 'GUPTA', mobile: '9029440502', pass: 'SHA502', role: 'Skilled' },
+      { employeeId: 'FTC056', firstName: 'SAGAR', lastName: 'PAWAR', mobile: '7769941140', pass: 'SAG140', role: 'Skilled' },
+      { employeeId: 'FTC028', firstName: 'Sanket', lastName: 'Manchekar', mobile: '750620993', pass: 'SAN993', role: 'Skilled' },
+      { employeeId: 'FTC085', firstName: 'Tejas', lastName: 'Dhukhande', mobile: '8169825345', pass: 'TEJ345', role: 'Skilled' },
+    ];
+
+    const usersData = [...baseUsersData];
+    for (const u of extraUsersData) {
+      const hash = await bcrypt.hash(u.pass, 10);
+      usersData.push({
+        employeeId: u.employeeId,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        mobile: u.mobile,
+        email: null,
+        role: u.role,
+        hash
+      });
+    }
 
     const users = {};
     for (const u of usersData) {
