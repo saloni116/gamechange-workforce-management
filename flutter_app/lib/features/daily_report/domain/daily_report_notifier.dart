@@ -28,8 +28,8 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 
   /// Dio instance for operations API calls.
   final Dio _dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 12),
-    receiveTimeout: const Duration(seconds: 12),
+    connectTimeout: const Duration(seconds: 45),
+    receiveTimeout: const Duration(seconds: 45),
   ));
 
   // ── Live lists (populated from API) ──────────────────────────────────────

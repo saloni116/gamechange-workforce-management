@@ -139,9 +139,11 @@ export class ActivityLogsService {
         activityLogId:
           activityLog.id,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('CRITICAL SUBMIT ERROR IN BACKEND:', error);
-      throw error;
+      throw new BadRequestException(
+        `Backend Submit Error: ${error?.message || error} - Stack: ${error?.stack}`
+      );
     }
   }
 
