@@ -258,7 +258,10 @@ export class UsersService {
     const existingUser =
       await this.prisma.user.findFirst({
         where: {
-          id,
+          OR: [
+            { id },
+            { employeeId: id },
+          ],
           isDeleted: false,
         },
         include: {
@@ -275,11 +278,12 @@ export class UsersService {
     const updatedUser =
       await this.prisma.user.update({
         where: {
-          id,
+          id: existingUser.id,
         },
 
         data: {
           ...updateUserDto,
+          ...(updateUserDto.isActive !== undefined ? { status: updateUserDto.isActive ? 'ACTIVE' : 'INACTIVE' } : {}),
         },
 
         include: {
@@ -401,6 +405,52 @@ export class UsersService {
     return {
       message:
         'User deleted successfully',
+    };
+  }
+
+  async changePassword(
+    id: string,
+    changePasswordDto: { currentPassword?: string; newPassword?: string },
+  ) {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id,
+        isDeleted: false,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Current password and new password are required');
+    }
+
+    const isCurrentPasswordValid = await PasswordUtil.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedNewPassword = await PasswordUtil.hash(newPassword);
+
+    await this.prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        passwordHash: hashedNewPassword,
+      },
+    });
+
+    return {
+      message: 'Password updated successfully',
     };
   }
 }

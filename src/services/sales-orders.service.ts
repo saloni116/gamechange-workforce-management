@@ -8,6 +8,8 @@ import { PrismaService } from '../database/prisma.service';
 
 import { CreateSalesOrderDto } from '../modules/sales-orders/dto/create-sales-order.dto';
 
+import { UpdateSalesOrderDto } from '../modules/sales-orders/dto/update-sales-order.dto';
+
 import { UpdateSODepartmentsDto } from '../modules/sales-orders/dto/update-so-departments.dto';
 
 @Injectable()
@@ -129,7 +131,7 @@ export class SalesOrdersService {
         'Sales order created successfully',
 
       salesOrder:
-        this.formatSalesOrderResponse(result),
+        await this.formatSalesOrderResponse(result),
     };
   }
 
@@ -158,9 +160,199 @@ export class SalesOrdersService {
         },
       });
 
-    return salesOrders.map((so) =>
-      this.formatSalesOrderResponse(so),
+    const formatted: any[] = [];
+    for (const so of salesOrders) {
+      formatted.push(await this.formatSalesOrderResponse(so));
+    }
+    return formatted;
+  }
+
+  async updateSalesOrder(
+    id: string,
+    updateSalesOrderDto: UpdateSalesOrderDto,
+  ) {
+    const so =
+      await this.prisma.salesOrder.findFirst({
+        where: {
+          id,
+          isDeleted: false,
+        },
+      });
+
+    if (!so) {
+      throw new NotFoundException(
+        'Sales order not found',
+      );
+    }
+
+    if (updateSalesOrderDto.soNumber) {
+      updateSalesOrderDto.soNumber =
+        updateSalesOrderDto.soNumber.toUpperCase();
+      const existingSO =
+        await this.prisma.salesOrder.findFirst({
+          where: {
+            soNumber:
+              updateSalesOrderDto.soNumber,
+            id: { not: id },
+            isDeleted: false,
+          },
+        });
+      if (existingSO) {
+        throw new BadRequestException(
+          'SO number already exists',
+        );
+      }
+    }
+
+    if (updateSalesOrderDto.customerName) {
+      updateSalesOrderDto.customerName =
+        updateSalesOrderDto.customerName.toUpperCase();
+    }
+
+    const updateData: any = {};
+    if (updateSalesOrderDto.soNumber !== undefined)
+      updateData.soNumber =
+        updateSalesOrderDto.soNumber;
+    if (
+      updateSalesOrderDto.customerName !==
+      undefined
+    )
+      updateData.customerName =
+        updateSalesOrderDto.customerName;
+    if (
+      updateSalesOrderDto.projectName !==
+      undefined
+    )
+      updateData.projectName =
+        updateSalesOrderDto.projectName || null;
+    if (
+      updateSalesOrderDto.soDescription !==
+      undefined
+    )
+      updateData.soDescription =
+        updateSalesOrderDto.soDescription;
+    if (updateSalesOrderDto.startDate !== undefined)
+      updateData.startDate = new Date(
+        updateSalesOrderDto.startDate,
+      );
+    if (updateSalesOrderDto.endDate !== undefined)
+      updateData.endDate = new Date(
+        updateSalesOrderDto.endDate,
+      );
+    if (updateSalesOrderDto.status !== undefined)
+      updateData.status =
+        updateSalesOrderDto.status;
+    if (updateSalesOrderDto.isActive !== undefined)
+      updateData.isActive =
+        updateSalesOrderDto.isActive;
+
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.salesOrder.update({
+          where: { id },
+          data: updateData,
+        });
+
+        if (
+          updateSalesOrderDto.departments !==
+          undefined
+        ) {
+          // Delete child records first
+          await tx.sODepartmentActivity.deleteMany({
+            where: {
+              soDepartment: {
+                soId: id,
+              },
+            },
+          });
+
+          // Delete existing mappings
+          await tx.sODepartment.deleteMany({
+            where: { soId: id },
+          });
+
+          // Create new mappings
+          for (const dept of updateSalesOrderDto.departments) {
+            const soDept =
+              await tx.sODepartment.create({
+                data: {
+                  soId: id,
+                  departmentId:
+                    dept.departmentId,
+                },
+              });
+
+            if (dept.activityIds?.length) {
+              await tx.sODepartmentActivity.createMany(
+                {
+                  data: dept.activityIds.map(
+                    (activityId) => ({
+                      soDepartmentId:
+                        soDept.id,
+                      activityId,
+                    }),
+                  ),
+                },
+              );
+            }
+          }
+        }
+      },
     );
+
+    // Re-fetch with relations
+    const finalResult =
+      await this.prisma.salesOrder.findUnique({
+        where: { id },
+        include: {
+          soDepartments: {
+            include: {
+              department: true,
+              soDepartmentActivities: {
+                include: {
+                  activity: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+    return {
+      message:
+        'Sales order updated successfully',
+      salesOrder:
+        await this.formatSalesOrderResponse(finalResult),
+    };
+  }
+
+  async deleteSalesOrder(id: string) {
+    const so =
+      await this.prisma.salesOrder.findFirst({
+        where: {
+          id,
+          isDeleted: false,
+        },
+      });
+
+    if (!so) {
+      throw new NotFoundException(
+        'Sales order not found',
+      );
+    }
+
+    await this.prisma.salesOrder.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+
+    return {
+      message:
+        'Sales order deleted successfully',
+    };
   }
 
   async getSalesOrderById(id: string) {
@@ -191,7 +383,7 @@ export class SalesOrdersService {
       );
     }
 
-    return this.formatSalesOrderResponse(so);
+    return await this.formatSalesOrderResponse(so);
   }
 
   async updateSODepartments(
@@ -281,7 +473,7 @@ export class SalesOrdersService {
         'SO departments updated successfully',
 
       salesOrder:
-        this.formatSalesOrderResponse(result),
+        await this.formatSalesOrderResponse(result),
     };
   }
 
@@ -304,19 +496,18 @@ export class SalesOrdersService {
       );
     }
 
-    const soDepartments =
-      await this.prisma.sODepartment.findMany({
-        where: { soId },
-        include: {
-          department: true,
-        },
-      });
+    const departments = await this.prisma.department.findMany({
+      where: {
+        isActive: true,
+        isDeleted: false,
+      },
+    });
 
-    return soDepartments.map((sd) => ({
-      id: sd.department.id,
-      name: sd.department.name,
-      code: sd.department.code,
-      description: sd.department.description,
+    return departments.map((d) => ({
+      id: d.id,
+      name: d.name,
+      code: d.code,
+      description: d.description,
     }));
   }
 
@@ -328,41 +519,32 @@ export class SalesOrdersService {
     soId: string,
     departmentId: string,
   ) {
-    const soDept =
-      await this.prisma.sODepartment.findUnique(
-        {
-          where: {
-            soId_departmentId: {
-              soId,
-              departmentId,
-            },
-          },
+    const so =
+      await this.prisma.salesOrder.findFirst({
+        where: {
+          id: soId,
+          isDeleted: false,
         },
-      );
+      });
 
-    if (!soDept) {
+    if (!so) {
       throw new NotFoundException(
-        'Department not found for this SO',
+        'Sales order not found',
       );
     }
 
-    const soActivities =
-      await this.prisma.sODepartmentActivity.findMany(
-        {
-          where: {
-            soDepartmentId: soDept.id,
-          },
-          include: {
-            activity: true,
-          },
-        },
-      );
+    const activities = await this.prisma.activity.findMany({
+      where: {
+        departmentId,
+        isActive: true,
+        isDeleted: false,
+      },
+    });
 
-    return soActivities.map((sa) => ({
-      id: sa.activity.id,
-      activityName: sa.activity.activityName,
-      standardManMinutes:
-        sa.activity.standardManMinutes,
+    return activities.map((a) => ({
+      id: a.id,
+      activityName: a.activityName,
+      standardManMinutes: a.standardManMinutes,
     }));
   }
 
@@ -375,60 +557,30 @@ export class SalesOrdersService {
     soId: string,
     departmentId: string,
   ) {
-    const soDept =
-      await this.prisma.sODepartment.findUnique(
-        {
-          where: {
-            soId_departmentId: {
-              soId,
-              departmentId,
-            },
-          },
-          include: {
-            soDepartmentActivities: true,
-          },
-        },
-      );
-
-    if (!soDept) {
-      throw new NotFoundException(
-        'Department not found for this SO',
-      );
-    }
-
-    // Get IDs of admin-selected activities
-    const selectedActivityIds =
-      soDept.soDepartmentActivities.map(
-        (sa) => sa.activityId,
-      );
-
-    // Find all activities in this department that are NOT selected
-    const otherActivities =
-      await this.prisma.activity.findMany({
-        where: {
-          departmentId,
-          isDeleted: false,
-          id: {
-            notIn: selectedActivityIds,
-          },
-        },
-      });
-
-    return otherActivities.map((a) => ({
-      id: a.id,
-      activityName: a.activityName,
-      standardManMinutes:
-        a.standardManMinutes,
-      isOtherActivity: true,
-    }));
+    return [];
   }
 
   /**
    * Format the raw Prisma response into a clean API response
    * with departments and activities nested.
    */
-  private formatSalesOrderResponse(so: any) {
+  private async formatSalesOrderResponse(so: any) {
     if (!so) return null;
+
+    const activeDepts = await this.prisma.department.findMany({
+      where: {
+        isActive: true,
+        isDeleted: false,
+      },
+      include: {
+        activities: {
+          where: {
+            isActive: true,
+            isDeleted: false,
+          },
+        },
+      },
+    });
 
     return {
       id: so.id,
@@ -441,22 +593,16 @@ export class SalesOrdersService {
       status: so.status,
       isActive: so.isActive,
       createdAt: so.createdAt,
-      departments: (so.soDepartments || []).map(
-        (sd: any) => ({
-          id: sd.department.id,
-          name: sd.department.name,
-          code: sd.department.code,
-          activities: (
-            sd.soDepartmentActivities || []
-          ).map((sa: any) => ({
-            id: sa.activity.id,
-            activityName:
-              sa.activity.activityName,
-            standardManMinutes:
-              sa.activity.standardManMinutes,
-          })),
-        }),
-      ),
+      departments: activeDepts.map((d) => ({
+        id: d.id,
+        name: d.name,
+        code: d.code,
+        activities: d.activities.map((a) => ({
+          id: a.id,
+          activityName: a.activityName,
+          standardManMinutes: a.standardManMinutes,
+        })),
+      })),
     };
   }
 }

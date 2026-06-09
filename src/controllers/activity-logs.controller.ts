@@ -2,9 +2,9 @@ import {
   Body,
   Controller,
   Get,
-  Param,
-  Patch,
   Post,
+  Patch,
+  Param,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +12,7 @@ import {
 import { ActivityLogsService } from '../services/activity-logs.service';
 
 import { CreateActivityLogDto } from '../modules/activity-logs/dto/create-activity-log.dto';
+import { UpdateActivityLogDto } from '../modules/activity-logs/dto/update-activity-log.dto';
 
 import { JwtAuthGuard } from '../modules/auth/guards/jwt-auth.guard';
 
@@ -47,15 +48,12 @@ async getActivityLogs() {
 }
 
   @UseGuards(JwtAuthGuard)
-  @Patch(':id/review')
-  async reviewActivityLog(
+  @Patch(':id')
+  async updateActivityLog(
+    @Req() req: any,
+    @Body() updateActivityLogDto: UpdateActivityLogDto,
     @Param('id') id: string,
-    @Body() body: { status: 'COMPLETED' | 'PENDING' | 'REWORK_ASSIGNED'; managerRemarks?: string },
   ) {
-    return this.activityLogsService.reviewActivityLog(
-      id,
-      body.status,
-      body.managerRemarks,
-    );
+    return this.activityLogsService.updateActivityLog(id, updateActivityLogDto);
   }
 }

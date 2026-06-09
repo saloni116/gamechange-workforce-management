@@ -36,7 +36,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('Admin')
-  @Get('admin-only')
+  @Get(['admin-only', 'admi-only'])
   async adminOnly(): Promise<{ message: string; }> {
     return {
       message: 'Welcome Admin',

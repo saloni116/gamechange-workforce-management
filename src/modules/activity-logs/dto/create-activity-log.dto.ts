@@ -21,7 +21,7 @@ export class CreateActivityLogDto {
   activityId: string;
 
   @IsInt()
-  @Min(1)
+  @Min(0)
   durationMinutes: number;
 
   @IsOptional()
@@ -31,6 +31,10 @@ export class CreateActivityLogDto {
   @IsOptional()
   @IsArray()
   coworkerEmployeeIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
 
   @IsOptional()
   @IsString()

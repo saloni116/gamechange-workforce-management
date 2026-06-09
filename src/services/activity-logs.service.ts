@@ -17,134 +17,156 @@ export class ActivityLogsService {
     userId: string,
     createActivityLogDto: CreateActivityLogDto,
   ) {
-    try {
-      const salesOrder =
-        await this.prisma.salesOrder.findFirst({
-          where: {
-            id: createActivityLogDto.soId,
-            isDeleted: false,
-          },
-        });
-
-      if (!salesOrder) {
-        throw new BadRequestException(
-          'Sales order not found',
-        );
-      }
-
-      const department =
-        await this.prisma.department.findFirst({
-          where: {
-            id: createActivityLogDto.departmentId,
-            isDeleted: false,
-          },
-        });
-
-      if (!department) {
-        throw new BadRequestException(
-          'Department not found',
-        );
-      }
-
-      const activity =
-        await this.prisma.activity.findFirst({
-          where: {
-            id: createActivityLogDto.activityId,
-            isDeleted: false,
-          },
-        });
-
-      if (!activity) {
-        throw new BadRequestException(
-          'Activity not found',
-        );
-      }
-
-      const activityLog =
-        await this.prisma.activityLog.create({
-          data: {
-            userId,
-
-            soId:
-              createActivityLogDto.soId,
-
-            departmentId:
-              createActivityLogDto.departmentId,
-
-            activityId:
-              createActivityLogDto.activityId,
-
-            activityDate:
-              new Date(),
-
-            remarks:
-              createActivityLogDto.remarks,
-
-            status: 'COMPLETED',
-
-            slots: {
-              create: {
-                startTime: createActivityLogDto.startTime
-                  ? new Date(createActivityLogDto.startTime)
-                  : new Date(),
-
-                endTime: createActivityLogDto.endTime
-                  ? new Date(createActivityLogDto.endTime)
-                  : new Date(),
-
-                durationMinutes:
-                  createActivityLogDto.durationMinutes,
-              },
-            },
-          },
-
-          include: {
-            slots: true,
-          },
-        });
-
-      if (
-        createActivityLogDto.coworkerEmployeeIds
-          ?.length
-      ) {
-        const coworkers =
-          await this.prisma.user.findMany({
-            where: {
-              employeeId: {
-                in:
-                  createActivityLogDto.coworkerEmployeeIds,
-              },
-
-              isDeleted: false,
-            },
-          });
-
-        for (const coworker of coworkers) {
-          await this.prisma.activityCoworker.create({
-            data: {
-              activitySlotId:
-                activityLog.slots[0].id,
-
-              coworkerUserId:
-                coworker.id,
-            },
-          });
+    let targetUserId = userId;
+    if (createActivityLogDto.employeeId) {
+      const targetUser = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { employeeId: createActivityLogDto.employeeId },
+            { id: createActivityLogDto.employeeId }
+          ],
+          isDeleted: false,
         }
+      });
+      if (!targetUser) {
+        throw new BadRequestException('Target worker not found');
       }
+      targetUserId = targetUser.id;
+    }
 
-      return {
-        message:
-          'Activity log submitted successfully',
+    const salesOrder =
+      await this.prisma.salesOrder.findFirst({
+        where: {
+          id: createActivityLogDto.soId,
+          isDeleted: false,
+        },
+      });
 
-        activityLogId:
-          activityLog.id,
-      };
-    } catch (error: any) {
-      console.error('CRITICAL SUBMIT ERROR IN BACKEND:', error);
+    if (!salesOrder) {
       throw new BadRequestException(
-        `Backend Submit Error: ${error?.message || error} - Stack: ${error?.stack}`
+        'Sales order not found',
       );
     }
+
+    const department =
+      await this.prisma.department.findFirst({
+        where: {
+          id: createActivityLogDto.departmentId,
+          isDeleted: false,
+        },
+      });
+
+    if (!department) {
+      throw new BadRequestException(
+        'Department not found',
+      );
+    }
+
+    const activity =
+      await this.prisma.activity.findFirst({
+        where: {
+          id: createActivityLogDto.activityId,
+          isDeleted: false,
+        },
+      });
+
+    if (!activity) {
+      throw new BadRequestException(
+        'Activity not found',
+      );
+    }
+
+    const activityLog =
+      await this.prisma.activityLog.create({
+        data: {
+          userId: targetUserId,
+
+          soId:
+            createActivityLogDto.soId,
+
+          departmentId:
+            createActivityLogDto.departmentId,
+
+          activityId:
+            createActivityLogDto.activityId,
+
+          activityDate:
+            new Date(),
+
+          remarks:
+            createActivityLogDto.remarks,
+
+          status: 'COMPLETED',
+
+          slots: {
+            create: {
+              startTime: (() => {
+                if (createActivityLogDto.startTime) {
+                  const [h, m] = createActivityLogDto.startTime.split(':').map(Number);
+                  const d = new Date();
+                  d.setHours(h, m, 0, 0);
+                  return d;
+                }
+                return new Date();
+              })(),
+
+              endTime: (() => {
+                if (createActivityLogDto.endTime) {
+                  const [h, m] = createActivityLogDto.endTime.split(':').map(Number);
+                  const d = new Date();
+                  d.setHours(h, m, 0, 0);
+                  return d;
+                }
+                return new Date();
+              })(),
+
+              durationMinutes:
+                createActivityLogDto.durationMinutes,
+            },
+          },
+        },
+
+        include: {
+          slots: true,
+        },
+      });
+
+    if (
+      createActivityLogDto.coworkerEmployeeIds
+        ?.length
+    ) {
+      const coworkers =
+        await this.prisma.user.findMany({
+          where: {
+            employeeId: {
+              in:
+                createActivityLogDto.coworkerEmployeeIds,
+            },
+
+            isDeleted: false,
+          },
+        });
+
+      for (const coworker of coworkers) {
+        await this.prisma.activityCoworker.create({
+          data: {
+            activitySlotId:
+              activityLog.slots[0].id,
+
+            coworkerUserId:
+              coworker.id,
+          },
+        });
+      }
+    }
+
+    return {
+      message:
+        'Activity log submitted successfully',
+
+      activityLogId:
+        activityLog.id,
+    };
   }
 
   async getActivityLogs() {
@@ -178,50 +200,21 @@ export class ActivityLogsService {
   return logs;
 }
 
-  async reviewActivityLog(
-    logId: string,
-    status: 'COMPLETED' | 'PENDING' | 'REWORK_ASSIGNED',
-    managerRemarks?: string,
-  ) {
-    const log = await this.prisma.activityLog.findUnique({
-      where: { id: logId },
-      include: { SalesOrder: true },
-    });
-
-    if (!log) {
+  async updateActivityLog(id: string, updatedFields: any) {
+    const existing = await this.prisma.activityLog.findUnique({ where: { id } });
+    if (!existing) {
       throw new BadRequestException('Activity log not found');
     }
 
-    const updatedLog = await this.prisma.activityLog.update({
-      where: { id: logId },
+    const updated = await this.prisma.activityLog.update({
+      where: { id },
       data: {
-        status,
-        managerRemarks,
-        isRework: status === 'REWORK_ASSIGNED',
+        managerRemarks: updatedFields.managerRemarks,
+        isRework: updatedFields.isRework,
+        reworkAssignedToId: updatedFields.reworkAssignedToId,
       },
     });
 
-    // Create a Notification for the user
-    const soNumber = log.SalesOrder?.soNumber || 'Activity Log';
-    const title = status === 'COMPLETED' ? 'Activity Log Approved' : 'Rework Assigned';
-    const message = status === 'COMPLETED'
-      ? `Your log for Sales Order ${soNumber} has been approved.`
-      : `Rework required for Sales Order ${soNumber}: ${managerRemarks || 'Please review.'}`;
-
-    await this.prisma.notification.create({
-      data: {
-        userId: log.userId,
-        title,
-        message,
-        type: status === 'COMPLETED' ? 'APPROVED' : 'REWORK',
-        referenceId: logId,
-        isRead: false,
-      },
-    });
-
-    return {
-      message: 'Activity log reviewed successfully',
-      activityLog: updatedLog,
-    };
+    return { message: 'Activity log updated successfully', activityLog: updated };
   }
 }

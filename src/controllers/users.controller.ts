@@ -21,6 +21,8 @@ import { RolesGuard } from '../modules/auth/guards/roles.guard';
 import { Roles } from '../modules/auth/decorators/roles.decorator';
 
 import { UpdateUserDto } from '../modules/users/dto/update-user.dto';
+import { ChangePasswordDto } from '../modules/users/dto/change-password.dto';
+
 @Controller('users')
 export class UsersController {
   constructor(
@@ -42,18 +44,13 @@ export class UsersController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getUsers() {
     return this.usersService.getUsers();
   }
-    @UseGuards(JwtAuthGuard, RolesGuard)
 
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getUserById(
     @Param('id') id: string,
@@ -61,21 +58,29 @@ export class UsersController {
     return this.usersService.getUserById(id);
   }
 
-    @UseGuards(JwtAuthGuard, RolesGuard)
-
-  @Roles('Admin')
-
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async updateUser(
     @Req() req: any,
     @Param('id') id: string,
-
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateUser(
       id,
       updateUserDto,
       req.user.userId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/change-password')
+  async changePassword(
+    @Param('id') id: string,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.usersService.changePassword(
+      id,
+      changePasswordDto,
     );
   }
 

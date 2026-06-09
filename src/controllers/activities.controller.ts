@@ -36,8 +36,7 @@ export class ActivitiesController {
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getActivities() {
     return this.activitiesService.getActivities();
