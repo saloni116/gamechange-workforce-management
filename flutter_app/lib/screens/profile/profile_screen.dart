@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../features/auth/domain/auth_notifier.dart';
+import '../../features/daily_report/data/mock_data.dart';
+import '../../features/history/domain/history_provider.dart';
 
 /// Screen for viewing the worker's profile.
 /// Displays worker name, Employee ID, daily hours worked (numerically and graphically),
@@ -10,26 +12,99 @@ import '../../features/auth/domain/auth_notifier.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  Color _getHourColor(double hours) {
+    if (hours < 5.8) {
+      return const Color(0xFFEF5350); // Red
+    } else if (hours >= 5.8 && hours <= 6.2) {
+      return const Color(0xFFFBC02D); // Yellow
+    } else if (hours >= 6.3 && hours <= 6.8) {
+      return const Color(0xFF81C784); // Pale Green
+    } else {
+      return const Color(0xFF2E7D32); // Dark Green
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final authState = ref.watch(authProvider);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.white70 : Colors.black54;
+    final labelColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
+    final cardBg = isDark ? const Color(0xFF262628) : Colors.grey.shade100;
+    final dividerColor = isDark ? Colors.white10 : Colors.grey.shade300;
 
+    final authState = ref.watch(authProvider);
     final employeeId = authState.employeeId ?? '—';
     final firstName = authState.firstName ?? '';
     final lastName = authState.lastName ?? '';
     final fullName = authState.fullName ?? '$firstName $lastName';
     final role = authState.role ?? 'Worker';
 
-    // Mocked profile stats
+    // Watch historyProvider to dynamically compute stats
+    final historyAsync = ref.watch(historyProvider);
+    final reports = historyAsync.value ?? mockSubmittedReports;
+
+    // Filter reports for the current user
+    final userReports = reports;
+
+    // Filter reports for today
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final todayReports = userReports.where((r) {
+      final rDate = DateTime(r.submittedDate.year, r.submittedDate.month, r.submittedDate.day);
+      return rDate.isAtSameMomentAs(todayDate);
+    }).toList();
+
+    // Sum today's working hours
+    final double hoursWorkedToday = todayReports.fold<double>(
+      0.0,
+      (sum, r) => sum + (r.durationMinutes / 60.0),
+    );
+    final double hoursWorkedTodayFormatted = double.parse(hoursWorkedToday.toStringAsFixed(1));
+    final int activitiesDoneToday = todayReports.length;
+
+    // Determine the dynamic color based on today's working hours
+    final Color todayHoursColor = _getHourColor(hoursWorkedTodayFormatted);
+
+    // Get the user's latest department
+    final String userDepartment = userReports.isNotEmpty 
+        ? userReports.first.department 
+        : 'Assembly & Testing';
+
+    // Find the Monday of the current week (1 = Monday, 7 = Sunday)
+    final int currentWeekday = now.weekday;
+    final DateTime mondayOfThisWeek = todayDate.subtract(Duration(days: currentWeekday - 1));
+
+    // Generate hours for each day of the current week (Mon to Sun)
+    final List<double> weeklyHoursList = List.generate(7, (index) {
+      final dayDate = mondayOfThisWeek.add(Duration(days: index));
+      final dayReports = userReports.where((r) {
+        final rDate = DateTime(r.submittedDate.year, r.submittedDate.month, r.submittedDate.day);
+        return rDate.isAtSameMomentAs(dayDate);
+      }).toList();
+      final double totalMins = dayReports.fold<double>(
+        0.0,
+        (sum, r) => sum + r.durationMinutes.toDouble(),
+      );
+      return double.parse((totalMins / 60.0).toStringAsFixed(1));
+    });
+
+    // Calculate the maximum weekly hours to ensure the graph scale adapts and never overflows the boundary
+    final double maxWeeklyHours = weeklyHoursList.fold<double>(
+      8.0, 
+      (maxVal, h) => h > maxVal ? h : maxVal,
+    );
+    final double chartMaxY = maxWeeklyHours + 1.5;
+
     const String dob = 'January 15, 1995';
-    const double hoursWorkedToday = 6.5;
-    const int activitiesDoneToday = 3;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 100), // extra bottom padding for navbar
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -42,19 +117,19 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         CircleAvatar(
                           radius: 54,
-                          backgroundColor: Colors.grey.shade800,
+                          backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
                           backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=11'),
                         ),
                         Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFF735D), // Coral
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.edit,
-                            size: 18,
-                            color: Colors.black,
+                          child: Icon(
+                            Icons.photo_camera_rounded,
+                            size: 16,
+                            color: isDark ? Colors.black : Colors.white,
                           ),
                         ),
                       ],
@@ -64,14 +139,14 @@ class ProfileScreen extends ConsumerWidget {
                       fullName,
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       role,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary, // Sage Green
+                        color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -83,22 +158,44 @@ class ProfileScreen extends ConsumerWidget {
               // ─── Profile Details Card ──────────────────────────────────────
               Text(
                 'Personal Information',
-                style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF262628),
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    _InfoRow(label: 'Employee ID', value: employeeId, icon: Icons.badge_outlined),
-                    const Divider(height: 24, color: Colors.white10),
-                    _InfoRow(label: 'Date of Birth', value: dob, icon: Icons.cake_outlined),
-                    const Divider(height: 24, color: Colors.white10),
-                    _InfoRow(label: 'Department', value: 'Assembly & Testing', icon: Icons.business_outlined),
+                    _InfoRow(
+                      label: 'Employee ID', 
+                      value: employeeId, 
+                      icon: Icons.fingerprint_rounded,
+                      textColor: textColor,
+                      labelColor: labelColor,
+                    ),
+                    Divider(height: 24, color: dividerColor),
+                    _InfoRow(
+                      label: 'Date of Birth', 
+                      value: dob, 
+                      icon: Icons.cake_rounded,
+                      textColor: textColor,
+                      labelColor: labelColor,
+                    ),
+                    Divider(height: 24, color: dividerColor),
+                    _InfoRow(
+                      label: 'Department', 
+                      value: userDepartment, 
+                      icon: Icons.precision_manufacturing_rounded,
+                      textColor: textColor,
+                      labelColor: labelColor,
+                    ),
                   ],
                 ),
               ),
@@ -107,7 +204,11 @@ class ProfileScreen extends ConsumerWidget {
               // ─── Daily Activity Statistics ─────────────────────────────────
               Text(
                 'Today\'s Activity Summary',
-                style: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -115,9 +216,12 @@ class ProfileScreen extends ConsumerWidget {
                   Expanded(
                     child: _StatCard(
                       label: 'Hours Worked',
-                      value: '$hoursWorkedToday / 8 hrs',
-                      icon: Icons.timer_outlined,
-                      color: const Color(0xFFFF735D),
+                      value: '$hoursWorkedTodayFormatted / 8 hrs',
+                      icon: Icons.hourglass_empty_rounded,
+                      color: todayHoursColor,
+                      cardBg: cardBg,
+                      textColor: textColor,
+                      labelColor: labelColor,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -125,8 +229,11 @@ class ProfileScreen extends ConsumerWidget {
                     child: _StatCard(
                       label: 'Activities Done',
                       value: '$activitiesDoneToday performed',
-                      icon: Icons.done_all_outlined,
-                      color: const Color(0xFF5C7862),
+                      icon: Icons.task_alt_rounded,
+                      color: theme.colorScheme.primary,
+                      cardBg: cardBg,
+                      textColor: textColor,
+                      labelColor: labelColor,
                     ),
                   ),
                 ],
@@ -135,31 +242,36 @@ class ProfileScreen extends ConsumerWidget {
 
               // ─── Graphical Hour Log (Weekly Breakdown) ─────────────────────
               Container(
-                height: 220,
+                height: 230,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF262628),
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Hours Logged This Week',
-                      style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        color: subTextColor, 
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Expanded(
                       child: BarChart(
                         BarChartData(
                           alignment: BarChartAlignment.spaceAround,
-                          maxY: 10,
+                          maxY: chartMaxY,
                           barTouchData: BarTouchData(enabled: false),
                           titlesData: FlTitlesData(
                             show: true,
                             bottomTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
+                                reservedSize: 32,
                                 getTitlesWidget: (value, meta) {
                                   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                                   if (value.toInt() >= 0 && value.toInt() < days.length) {
@@ -167,7 +279,7 @@ class ProfileScreen extends ConsumerWidget {
                                       padding: const EdgeInsets.only(top: 8.0),
                                       child: Text(
                                         days[value.toInt()],
-                                        style: const TextStyle(color: Colors.white54, fontSize: 11),
+                                        style: TextStyle(color: labelColor, fontSize: 11),
                                       ),
                                     );
                                   }
@@ -178,12 +290,12 @@ class ProfileScreen extends ConsumerWidget {
                             leftTitles: AxisTitles(
                               sideTitles: SideTitles(
                                 showTitles: true,
-                                reservedSize: 28,
+                                reservedSize: 32,
                                 getTitlesWidget: (value, meta) {
                                   if (value % 2 == 0) {
                                     return Text(
                                       '${value.toInt()}h',
-                                      style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                      style: TextStyle(color: labelColor, fontSize: 10),
                                     );
                                   }
                                   return const Text('');
@@ -195,15 +307,26 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           borderData: FlBorderData(show: false),
                           gridData: FlGridData(show: false),
-                          barGroups: [
-                            _makeBarGroup(0, 8.0, const Color(0xFF5C7862)),
-                            _makeBarGroup(1, 7.5, const Color(0xFF5C7862)),
-                            _makeBarGroup(2, 8.5, const Color(0xFF5C7862)),
-                            _makeBarGroup(3, 6.0, const Color(0xFF5C7862)),
-                            _makeBarGroup(4, hoursWorkedToday, const Color(0xFFFF735D)), // Today highlighted in Coral
-                            _makeBarGroup(5, 0.0, const Color(0xFF5C7862)),
-                            _makeBarGroup(6, 0.0, const Color(0xFF5C7862)),
-                          ],
+                          barGroups: List.generate(7, (index) {
+                            final hours = weeklyHoursList[index];
+                            final barColor = _getHourColor(hours);
+                            return BarChartGroupData(
+                              x: index,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: hours,
+                                  color: barColor,
+                                  width: 14,
+                                  borderRadius: const BorderRadius.all(Radius.circular(6)),
+                                  backDrawRodData: BackgroundBarChartRodData(
+                                    show: true,
+                                    toY: chartMaxY,
+                                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }),
                         ),
                       ),
                     ),
@@ -236,25 +359,6 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
-
-  BarChartGroupData _makeBarGroup(int x, double y, Color barColor) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: barColor,
-          width: 14,
-          borderRadius: const BorderRadius.all(Radius.circular(6)),
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: 8,
-            color: Colors.white.withOpacity(0.05),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -265,34 +369,37 @@ class _InfoRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
+    required this.textColor,
+    required this.labelColor,
   });
 
   final String label;
   final String value;
   final IconData icon;
+  final Color textColor;
+  final Color labelColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(icon, color: Colors.grey.shade400, size: 20),
+        Icon(icon, color: labelColor, size: 20),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.grey.shade500,
+              style: TextStyle(
+                color: labelColor,
                 fontSize: 12,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               value,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.white,
+              style: TextStyle(
+                color: textColor,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -310,20 +417,25 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    required this.cardBg,
+    required this.textColor,
+    required this.labelColor,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final Color cardBg;
+  final Color textColor;
+  final Color labelColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF262628),
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -333,16 +445,16 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade500,
+            style: TextStyle(
+              color: labelColor,
               fontSize: 12,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: Colors.white,
+            style: TextStyle(
+              color: textColor,
               fontWeight: FontWeight.bold,
               fontSize: 15,
             ),

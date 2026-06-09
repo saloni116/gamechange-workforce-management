@@ -18,11 +18,11 @@ class CoworkerSection extends ConsumerStatefulWidget {
   @override
   ConsumerState<CoworkerSection> createState() => _CoworkerSectionState();
 }
-
 class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
   Future<void> _showCoworkerVerifyDialog(BuildContext context) async {
     final notifier = ref.read(dailyReportProvider.notifier);
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final controller = TextEditingController();
     String? errorMessage;
 
@@ -33,18 +33,21 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1E1E1E), // matching dark mode color
+              backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade800),
+                side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
               ),
               title: Row(
                 children: [
                   Icon(Icons.people_outline, color: theme.colorScheme.primary),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'Verify Coworker',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ],
               ),
@@ -52,27 +55,30 @@ class _CoworkerSectionState extends ConsumerState<CoworkerSection> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Please enter the Employee ID of the coworker working with you.',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDark ? Colors.grey : Colors.grey.shade700,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: controller,
                     autofocus: true,
-                    style: const TextStyle(color: Colors.white),
+                    style: theme.textTheme.bodyLarge,
                     decoration: InputDecoration(
                       labelText: 'Employee ID',
-                      labelStyle: TextStyle(color: Colors.grey.shade400),
+                      labelStyle: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                       hintText: 'e.g. EMP-1042',
-                      hintStyle: TextStyle(color: Colors.grey.shade600),
+                      hintStyle: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
                       errorText: errorMessage,
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(color: theme.colorScheme.primary),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey.shade700),
+                        borderSide: BorderSide(color: isDark ? Colors.grey.shade700 : Colors.grey.shade400),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       errorBorder: OutlineInputBorder(

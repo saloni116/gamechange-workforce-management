@@ -34,14 +34,10 @@ class DailyReportScreen extends ConsumerWidget {
       displayedActivities = allActivities.toList();
     } else if (state.selectedDepartment != null) {
       // Normal mode: only department-filtered activities that are within the user's assigned role
-      // AND associated with the selected Sales Order (if selected)
       displayedActivities = allActivities
           .where((a) =>
               a.departmentId == state.selectedDepartment!.id &&
-              a.isInRole == true &&
-              (state.selectedSO == null ||
-                  state.selectedSO!.activityIds.isEmpty ||
-                  state.selectedSO!.activityIds.contains(a.id)))
+              a.isInRole == true)
           .toList();
     } else {
       displayedActivities = <Activity>[];

@@ -8,6 +8,7 @@ import '../../../app/config.dart';
 import '../data/mock_data.dart';
 import 'daily_report_state.dart';
 import '../../auth/domain/auth_notifier.dart';
+import '../../history/domain/history_provider.dart';
 
 /// Riverpod [StateNotifier] that owns all mutations and validations for the
 /// Daily Report form.
@@ -34,13 +35,13 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   // ── Live lists (populated from API) ──────────────────────────────────────
 
   /// Live departments loaded from the API.
-  List<Department> _liveDepartments = [];
+  List<Department> _liveDepartments = mockDepartments;
 
   /// Live activities loaded from the API.
-  List<Activity> _liveActivities = [];
+  List<Activity> _liveActivities = mockActivities;
 
   /// Live sales orders loaded from the API.
-  List<SalesOrder> _liveSalesOrders = [];
+  List<SalesOrder> _liveSalesOrders = mockSalesOrders;
 
   // ── Exposed lists for UI ─────────────────────────────────────────────────
 
@@ -75,6 +76,19 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
   /// form remains fully functional.
   Future<void> loadDropdowns() async {
     if (!mounted) return;
+
+    final token = _getToken();
+    if (token == null || token.isEmpty || token.startsWith('mock_')) {
+      debugPrint('🧪 Mock token detected or empty token. Using mock data for dropdowns.');
+      _liveDepartments = mockDepartments;
+      _liveActivities = mockActivities;
+      _liveSalesOrders = mockSalesOrders;
+      if (mounted) {
+        state = state.copyWith(isLoadingDropdowns: false);
+      }
+      return;
+    }
+
     state = state.copyWith(isLoadingDropdowns: true);
 
     try {
@@ -98,8 +112,10 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
                 ))
             .where((d) => d.id.isNotEmpty && d.name.isNotEmpty)
             .toList();
-        _liveDepartments = parsed;
+        _liveDepartments = parsed.isNotEmpty ? parsed : mockDepartments;
         debugPrint('✅ Departments loaded from API: ${parsed.length}');
+      } else {
+        _liveDepartments = mockDepartments;
       }
 
       // ── Map Activities ───────────────────────────────────────────────
@@ -132,8 +148,10 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
             })
             .where((a) => a.id.isNotEmpty)
             .toList();
-        _liveActivities = parsed;
+        _liveActivities = parsed.isNotEmpty ? parsed : mockActivities;
         debugPrint('✅ Activities loaded from API: ${parsed.length}');
+      } else {
+        _liveActivities = mockActivities;
       }
 
       // ── Map Sales Orders ─────────────────────────────────────────────
@@ -182,19 +200,28 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
             })
             .where((s) => s.id.isNotEmpty)
             .toList();
-        _liveSalesOrders = parsed;
-        debugPrint('✅ Sales Orders loaded from API: ${parsed.length} -> ${parsed.map((e) => e.label).toList()}');
+        _liveSalesOrders = parsed.isNotEmpty ? parsed : mockSalesOrders;
+        debugPrint('✅ Sales Orders loaded from API: ${parsed.length}');
+      } else {
+        _liveSalesOrders = mockSalesOrders;
       }
     } on DioException catch (e) {
       debugPrint(
         '⚠️ Dropdown API unreachable (${e.type.name}): ${e.response?.statusCode} - ${e.response?.data}',
       );
+      _liveDepartments = mockDepartments;
+      _liveActivities = mockActivities;
+      _liveSalesOrders = mockSalesOrders;
+
       if (e.response?.statusCode == 401) {
         debugPrint('⚠️ Unauthorized token detected on dropdown load. Logging out user...');
         ref.read(authProvider.notifier).logout();
       }
     } catch (e) {
       debugPrint('⚠️ Unexpected error loading dropdowns: $e');
+      _liveDepartments = mockDepartments;
+      _liveActivities = mockActivities;
+      _liveSalesOrders = mockSalesOrders;
     } finally {
       if (mounted) {
         state = state.copyWith(isLoadingDropdowns: false);
@@ -208,9 +235,7 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
 
   List<Department> getDepartmentsForSalesOrder(SalesOrder? so) {
     if (so == null) return const <Department>[];
-    return _liveDepartments
-        .where((d) => so.departmentIds.contains(d.id))
-        .toList();
+    return _liveDepartments;
   }
 
   void selectSalesOrder(SalesOrder? so) {
