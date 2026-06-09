@@ -571,8 +571,8 @@ class DailyReportNotifier extends StateNotifier<DailyReportState> {
                 state.verifiedCoworker != null
             ? [state.verifiedCoworker!.employeeId]
             : <String>[],
-        'startTime': startDateTime.toIso8601String(),
-        'endTime': endDateTime.toIso8601String(),
+        'startTime': '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}',
+        'endTime': '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
       };
 
       final String finalUrl = '$_baseUrl/activity-logs';
